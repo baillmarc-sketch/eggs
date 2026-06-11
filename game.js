@@ -569,6 +569,14 @@ const sfx = (() => {
     burnt() { tone(220, 0.18, 'sawtooth', 0.14, 0, -100); tone(140, 0.3, 'sawtooth', 0.14, 0.15, -60); noise(0.4, 0.2, 500); },
     beep: () => tone(1200, 0.07, 'square', 0.08),
     gameover() { tone(523, 0.15, 'square', 0.12); tone(392, 0.15, 'square', 0.12, 0.16); tone(330, 0.3, 'square', 0.12, 0.32); },
+    smooch() {
+      // mwah!
+      tone(520, 0.14, 'sine', 0.22, 0, 600);
+      noise(0.06, 0.18, 1600, 0.13);
+      tone(1100, 0.22, 'sine', 0.18, 0.15, -500);
+      tone(659, 0.12, 'triangle', 0.12, 0.45);
+      tone(880, 0.25, 'triangle', 0.12, 0.58);
+    },
     start() { tone(523, 0.1, 'square', 0.1); tone(659, 0.1, 'square', 0.1, 0.1); tone(784, 0.18, 'square', 0.12, 0.2); },
   };
 })();
@@ -828,8 +836,45 @@ $('saveBtn').addEventListener('click', () => {
   $('overBoard').style.display = 'block';
   renderBoard($('overBoard'), entry);
   $('nameInput').blur();
-  sfx.good();
+  if (name === 'ANNA') showSmooch();
+  else sfx.good();
 });
+
+// ---------------- the Anna easter egg ----------------
+let smoochTimer = null;
+function showSmooch() {
+  const el = $('smooch');
+  el.classList.add('show');
+  // restart the CSS entrance animations
+  for (const child of el.children) {
+    child.style.animation = 'none';
+    void child.offsetWidth;
+    child.style.animation = '';
+  }
+  sfx.smooch();
+  const HEARTS = ['💖', '💕', '💗', '❤️', '💘', '😘'];
+  for (let i = 0; i < 26; i++) {
+    setTimeout(() => {
+      if (!el.classList.contains('show')) return;
+      const h = document.createElement('div');
+      h.className = 'heart';
+      h.textContent = HEARTS[Math.floor(Math.random() * HEARTS.length)];
+      h.style.left = Math.random() * 92 + 2 + '%';
+      h.style.fontSize = 22 + Math.random() * 30 + 'px';
+      h.style.animationDuration = 2.4 + Math.random() * 2 + 's';
+      el.appendChild(h);
+      setTimeout(() => h.remove(), 4600);
+    }, i * 140);
+  }
+  const hide = () => {
+    clearTimeout(smoochTimer);
+    el.classList.remove('show');
+    el.querySelectorAll('.heart').forEach((h) => h.remove());
+  };
+  clearTimeout(smoochTimer);
+  smoochTimer = setTimeout(hide, 5200);
+  el.addEventListener('pointerdown', hide, { once: true });
+}
 $('nameInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('saveBtn').click(); });
 
 renderBoard($('startBoard'));
