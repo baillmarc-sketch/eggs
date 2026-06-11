@@ -1,0 +1,17 @@
+{
+  "name": "EGG FRYER 3000 — Galactic Griddle",
+  "short_name": "EggFryer3000",
+  "description": "A silly futuristic 3D egg frying game. Tap the pan, fry the eggs, top the Hall of Flame.",
+  "start_url": ".",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#0a0118",
+  "theme_color": "#0a0118",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230a0118'/><text x='50' y='68' font-size='60' text-anchor='middle'>🍳</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
