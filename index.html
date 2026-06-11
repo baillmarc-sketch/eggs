@@ -451,6 +451,56 @@
     pointer-events: none;
     animation: heartFloat linear forwards;
   }
+
+  /* ============ and a salute to Master Shilling ============ */
+  #shillak {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    overflow: hidden;
+    background: radial-gradient(ellipse at 50% 40%, rgba(255, 200, 60, 0.32), rgba(12, 10, 30, 0.93) 78%);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+  }
+  #shillak.show { display: flex; }
+  .pen-face {
+    font-size: 110px;
+    line-height: 1;
+    animation: smoochPop 0.9s cubic-bezier(0.18, 1.6, 0.4, 1) both, penWrite 0.9s 0.9s ease-in-out infinite;
+    filter: drop-shadow(0 0 28px rgba(255, 200, 60, 0.85));
+  }
+  @keyframes penWrite {
+    0%, 100% { transform: rotate(-32deg) translate(-14px, 0); }
+    25%      { transform: rotate(-24deg) translate(0, 10px); }
+    50%      { transform: rotate(-34deg) translate(12px, 2px); }
+    75%      { transform: rotate(-22deg) translate(4px, 12px); }
+  }
+  .pen-text {
+    margin-top: 16px;
+    font-size: clamp(30px, 8.5vw, 46px);
+    font-weight: 900;
+    font-style: italic;
+    line-height: 1.15;
+    background: linear-gradient(180deg, #fff6d8 10%, #ffd34d 50%, #c98f1b 90%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 18px rgba(255, 200, 60, 0.65)) drop-shadow(0 3px 0 rgba(0,0,0,0.4));
+    animation: smoochTextIn 0.7s 0.45s cubic-bezier(0.18, 1.6, 0.4, 1) both;
+  }
+  .pen-text span {
+    display: block;
+    margin-top: 8px;
+    font-size: 0.6em;
+    letter-spacing: 4px;
+    filter: none;
+    -webkit-text-fill-color: initial;
+  }
 </style>
 </head>
 <body>
@@ -526,6 +576,12 @@
     </div>
   </div>
   <div class="crab-text">CRAB RAVE!<span>DANCE, RYAN, DANCE! 🦀</span></div>
+</div>
+
+<!-- and a salute to Master Shilling -->
+<div id="shillak">
+  <div class="pen-face">🖋️</div>
+  <div class="pen-text">Nice work,<br>Master Shilling<span>🖊️</span></div>
 </div>
 
 <script type="module" src="./game.js"></script>
