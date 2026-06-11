@@ -618,6 +618,13 @@ const sfx = (() => {
       tone(1568, 0.3, 'triangle', 0.14, 0.75);
       tone(2093, 0.4, 'triangle', 0.1, 0.85);
     },
+    smackdown() {
+      // crowd roar swells, the body hits the mat, then the bell
+      noise(1.1, 0.16, 500);
+      tone(70, 0.5, 'sine', 0.4, 0.78, -35);
+      noise(0.18, 0.35, 900, 0.78);
+      for (let i = 0; i < 3; i++) tone(2640, 0.22, 'square', 0.07, 1.25 + i * 0.28);
+    },
     crabRave() {
       // tiny rave: plucky melody over a four-on-the-floor bass thump
       const melody = [523, 659, 784, 659, 880, 784, 659, 523, 587, 698, 880, 1047];
@@ -986,7 +993,7 @@ $('againBtn').addEventListener('click', startGame);
 // secret celebration names: they trigger their easter egg and score normally,
 // but are never remembered/pre-filled — they must be typed fresh each time,
 // so the secrets don't leak onto the board by accident
-const SECRET_NAMES = ['ANNA', 'SANTA', 'RYAN', 'SHILLAK'];
+const SECRET_NAMES = ['ANNA', 'SANTA', 'RYAN', 'SHILLAK', 'KEMPER', 'ROGERSK', 'TWSE2000'];
 
 $('saveBtn').addEventListener('click', () => {
   const name = ($('nameInput').value.trim() || 'CHEF').toUpperCase().slice(0, 8);
@@ -1001,6 +1008,7 @@ $('saveBtn').addEventListener('click', () => {
   else if (name === 'SANTA') showSanta();
   else if (name === 'RYAN') showCrab();
   else if (name === 'SHILLAK') showShillak();
+  else if (name === 'KEMPER' || name === 'ROGERSK' || name === 'TWSE2000') showWrestle();
   else sfx.good();
 });
 
@@ -1041,6 +1049,7 @@ const showSmooch = () => celebrate($('smooch'), sfx.smooch, ['💖', '💕', '�
 const showSanta = () => celebrate($('santa'), sfx.hohoho, ['❄️', '🎁', '⛄', '❄️', '✨', '🦌'], 'flake');
 const showCrab = () => celebrate($('crab'), sfx.crabRave, ['🎵', '🎶', '🫧', '🐚', '✨', '🫧'], 'note');
 const showShillak = () => celebrate($('shillak'), sfx.scribble, ['🖊️', '✒️', '📝', '✨', '✍️'], 'heart');
+const showWrestle = () => celebrate($('wrestle'), sfx.smackdown, ['💥', '⭐', '👏', '🛎️', '💪'], 'heart');
 $('nameInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('saveBtn').click(); });
 
 renderBoard($('startBoard'));
