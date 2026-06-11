@@ -977,15 +977,20 @@ function endGame() {
   $('overBoardTitle').style.display = 'none';
   $('overBoard').style.display = 'none';
   const savedName = localStorage.getItem('eggfryer3000.name');
-  if (savedName) $('nameInput').value = savedName;
+  $('nameInput').value = savedName && !SECRET_NAMES.includes(savedName) ? savedName : '';
   overScreen.classList.add('show');
 }
 
 $('startBtn').addEventListener('click', startGame);
 $('againBtn').addEventListener('click', startGame);
+// secret celebration names: they trigger their easter egg and score normally,
+// but are never remembered/pre-filled — they must be typed fresh each time,
+// so the secrets don't leak onto the board by accident
+const SECRET_NAMES = ['ANNA', 'SANTA', 'RYAN', 'SHILLAK'];
+
 $('saveBtn').addEventListener('click', () => {
   const name = ($('nameInput').value.trim() || 'CHEF').toUpperCase().slice(0, 8);
-  localStorage.setItem('eggfryer3000.name', name);
+  if (!SECRET_NAMES.includes(name)) localStorage.setItem('eggfryer3000.name', name);
   const entry = saveScore(name, score);
   $('nameEntry').style.display = 'none';
   $('overBoardTitle').style.display = 'block';
