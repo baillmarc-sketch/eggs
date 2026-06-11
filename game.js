@@ -651,9 +651,10 @@ const sfx = (() => {
 const raycaster = new THREE.Raycaster();
 const tapNDC = new THREE.Vector2();
 
-let pointerHeld = false, gesture = 'none';  // 'none' | 'tilt' | 'flip'
-let downTime = 0, eggAtStart = null;
-const dragStart = { x: 0, y: 0 };
+// every finger gets its own gesture state, so you can crack, serve and flip
+// several eggs at once with several fingers
+const pointers = new Map();          // pointerId -> { x0, y0, t0, egg, gesture }
+let tiltPointerId = null;            // the one finger allowed to steer the pan
 const tiltTarget = { x: 0, z: 0 };   // where the pan wants to lean
 const tilt = { x: 0, z: 0 };         // where it actually is (springy)
 const TILT_MAX = 0.32;
@@ -715,55 +716,56 @@ function handleTap(x, y) {
 }
 
 renderer.domElement.addEventListener('pointerdown', (e) => {
-  pointerHeld = true;
-  gesture = 'none';
-  downTime = performance.now();
-  dragStart.x = e.clientX;
-  dragStart.y = e.clientY;
+  let egg = null;
   if (state === 'playing') {
     const local = projectToPan(e.clientX, e.clientY);
     const near = local ? eggNear(local) : null;
-    eggAtStart = near && near.d < 1.55 ? near.egg : null;
-  } else {
-    eggAtStart = null;
+    egg = near && near.d < 1.55 ? near.egg : null;
   }
+  pointers.set(e.pointerId, {
+    x0: e.clientX, y0: e.clientY, t0: performance.now(), egg, gesture: 'none',
+  });
 }, { passive: true });
 
 renderer.domElement.addEventListener('pointermove', (e) => {
-  if (!pointerHeld) return;
-  const dx = e.clientX - dragStart.x;
-  const dy = e.clientY - dragStart.y;
-  if (gesture === 'none') {
-    const elapsed = performance.now() - downTime;
-    if (eggAtStart) {
+  const p = pointers.get(e.pointerId);
+  if (!p) return;
+  const dx = e.clientX - p.x0;
+  const dy = e.clientY - p.y0;
+  if (p.gesture === 'none') {
+    const elapsed = performance.now() - p.t0;
+    if (p.egg) {
       // an upward flick that started on an egg = FLIP; the flick gets strong
       // priority, so tilt only starts for clearly sideways/downward drags
       // or once the flick window has passed
       if (dy < -28 && elapsed < 650) {
-        gesture = 'flip';
-        flipEgg(eggAtStart);
+        p.gesture = 'flip';
+        flipEgg(p.egg);
         return;
       }
       if ((Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.5) || dy > 55 ||
-          (elapsed >= 650 && Math.hypot(dx, dy) > 14)) gesture = 'tilt';
+          (elapsed >= 650 && Math.hypot(dx, dy) > 14)) p.gesture = 'tilt';
     } else if (Math.hypot(dx, dy) > 14) {
-      gesture = 'tilt';
+      p.gesture = 'tilt';
     }
+    if (p.gesture === 'tilt' && tiltPointerId === null) tiltPointerId = e.pointerId;
   }
-  if (gesture === 'tilt') {
+  if (p.gesture === 'tilt' && tiltPointerId === e.pointerId) {
     tiltTarget.x = THREE.MathUtils.clamp(dy * 0.0024, -TILT_MAX, TILT_MAX);
     tiltTarget.z = THREE.MathUtils.clamp(-dx * 0.0024, -TILT_MAX, TILT_MAX);
   }
 }, { passive: true });
 
 function releasePointer(e) {
-  if (!pointerHeld) return;
-  pointerHeld = false;
-  tiltTarget.x = 0;
-  tiltTarget.z = 0;
-  if (gesture === 'none' && e.type === 'pointerup') handleTap(e.clientX, e.clientY);
-  gesture = 'none';
-  eggAtStart = null;
+  const p = pointers.get(e.pointerId);
+  if (!p) return;
+  pointers.delete(e.pointerId);
+  if (tiltPointerId === e.pointerId) {
+    tiltPointerId = null;
+    tiltTarget.x = 0;
+    tiltTarget.z = 0;
+  }
+  if (p.gesture === 'none' && e.type === 'pointerup') handleTap(e.clientX, e.clientY);
 }
 renderer.domElement.addEventListener('pointerup', releasePointer, { passive: true });
 renderer.domElement.addEventListener('pointercancel', releasePointer, { passive: true });
@@ -940,9 +942,18 @@ async function fetchRemoteBoard() {
   const res = await fetch(`${REMOTE_DB_URL}/scores.json`);
   const data = await res.json();
   return Object.values(data || {})
-    .filter((r) => r && typeof r.pts === 'number' && typeof r.name === 'string')
-    .sort((a, b) => b.pts - a.pts)
-    .slice(0, 10);
+    .filter((r) => r && typeof r.pts === 'number' && typeof r.name === 'string');
+}
+// one row per name — everyone's personal best (earlier score wins ties)
+function dedupeBoard(rows) {
+  const best = new Map();
+  for (const r of rows) {
+    const cur = best.get(r.name);
+    if (!cur || r.pts > cur.pts || (r.pts === cur.pts && (r.date || 0) < (cur.date || 0))) {
+      best.set(r.name, r);
+    }
+  }
+  return [...best.values()].sort((a, b) => b.pts - a.pts).slice(0, 10);
 }
 function renderBoard(el, highlight) {
   paintBoard(el, loadBoard(), highlight);
@@ -954,6 +965,7 @@ function renderBoard(el, highlight) {
   }
 }
 function paintBoard(el, board, highlight) {
+  board = dedupeBoard(board);
   if (!board.length) {
     el.innerHTML = '<div class="board-empty">No fry-lords yet. Be the first! 🥇</div>';
     return;
