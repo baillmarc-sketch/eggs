@@ -236,16 +236,8 @@ function makeEgg(slot) {
   ring.position.y = 0.04;
   group.add(ring);
 
-  // fat-finger invisible hit target
-  const hit = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.95, 0.95, 1.4, 10),
-    new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false })
-  );
-  hit.position.y = 0.5;
-  group.add(hit);
-
   panGroup.add(group);
-  return { group, white, edge, yolk, ring, hit, pupils, slot, age: 0, alive: true, eyePhase: Math.random() * 10, bubbles: [] };
+  return { group, white, edge, yolk, ring, pupils, slot, age: 0, alive: true, eyePhase: Math.random() * 10, bubbles: [] };
 }
 
 // ---------------- cooking visuals ----------------
@@ -591,24 +583,37 @@ const tiltTarget = { x: 0, z: 0 };   // where the pan wants to lean
 const tilt = { x: 0, z: 0 };         // where it actually is (springy)
 const TILT_MAX = 0.32;
 
+const panPlane = new THREE.Plane();
+const planeNormal = new THREE.Vector3();
+const tapPoint = new THREE.Vector3();
+
 function handleTap(x, y) {
   if (state !== 'playing') return;
   tapNDC.set((x / window.innerWidth) * 2 - 1, -(y / window.innerHeight) * 2 + 1);
   raycaster.setFromCamera(tapNDC, camera);
 
-  // 1) did we tap an egg?
-  const hitMeshes = eggs.filter(eg => eg.alive).map(eg => eg.hit);
-  const eggHits = raycaster.intersectObjects(hitMeshes, false);
-  if (eggHits.length) {
-    const egg = eggs.find(eg => eg.hit === eggHits[0].object);
-    if (egg) serveEgg(egg, x, y);
+  // project the tap onto the (possibly tilted) pan surface plane, then pick
+  // by distance to the tap point — so the egg you aim at is the one you get,
+  // even when eggs overlap on screen
+  planeNormal.set(0, 1, 0).applyQuaternion(panGroup.quaternion);
+  panPlane.setFromNormalAndCoplanarPoint(planeNormal, panGroup.position);
+  if (!raycaster.ray.intersectPlane(panPlane, tapPoint)) return;
+  const local = panGroup.worldToLocal(tapPoint.clone());
+
+  // 1) nearest egg within grab range wins
+  let bestEgg = null, bestEggD = Infinity;
+  for (const egg of eggs) {
+    if (!egg.alive) continue;
+    const d = Math.hypot(egg.group.position.x - local.x, egg.group.position.z - local.z);
+    if (d < bestEggD) { bestEggD = d; bestEgg = egg; }
+  }
+  if (bestEgg && bestEggD < 1.05) {
+    serveEgg(bestEgg, x, y);
     return;
   }
 
-  // 2) did we tap the pan? → crack a new egg into the nearest free slot
-  const panHits = raycaster.intersectObject(panSurface, false);
-  if (panHits.length) {
-    const local = panGroup.worldToLocal(panHits[0].point.clone());
+  // 2) otherwise a tap on the pan cracks a new egg into the nearest free slot
+  if (Math.hypot(local.x, local.z) < PAN_R + 0.4) {
     let best = null, bestD = Infinity;
     for (const s of SLOTS) {
       if (s.taken) continue;
