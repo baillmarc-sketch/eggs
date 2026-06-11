@@ -612,6 +612,12 @@ const sfx = (() => {
       // ...and sleigh bells
       for (let i = 0; i < 6; i++) tone(i % 2 ? 2350 : 1980, 0.09, 'triangle', 0.07, 1.05 + i * 0.11);
     },
+    scribble() {
+      // pen scratching out a flourish of a signature, then a ding
+      for (let i = 0; i < 5; i++) noise(0.09, 0.14, 2600 + (i % 2) * 900, i * 0.13);
+      tone(1568, 0.3, 'triangle', 0.14, 0.75);
+      tone(2093, 0.4, 'triangle', 0.1, 0.85);
+    },
     crabRave() {
       // tiny rave: plucky melody over a four-on-the-floor bass thump
       const melody = [523, 659, 784, 659, 880, 784, 659, 523, 587, 698, 880, 1047];
@@ -989,6 +995,7 @@ $('saveBtn').addEventListener('click', () => {
   if (name === 'ANNA') showSmooch();
   else if (name === 'SANTA') showSanta();
   else if (name === 'RYAN') showCrab();
+  else if (name === 'SHILLAK') showShillak();
   else sfx.good();
 });
 
@@ -1028,6 +1035,7 @@ function celebrate(el, sound, emojis, particleClass) {
 const showSmooch = () => celebrate($('smooch'), sfx.smooch, ['💖', '💕', '💗', '❤️', '💘', '😘'], 'heart');
 const showSanta = () => celebrate($('santa'), sfx.hohoho, ['❄️', '🎁', '⛄', '❄️', '✨', '🦌'], 'flake');
 const showCrab = () => celebrate($('crab'), sfx.crabRave, ['🎵', '🎶', '🫧', '🐚', '✨', '🫧'], 'note');
+const showShillak = () => celebrate($('shillak'), sfx.scribble, ['🖊️', '✒️', '📝', '✨', '✍️'], 'heart');
 $('nameInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('saveBtn').click(); });
 
 renderBoard($('startBoard'));
