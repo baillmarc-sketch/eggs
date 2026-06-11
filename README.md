@@ -25,7 +25,39 @@ climb the **HALL OF FLAME** leaderboard.
 | Bit crispy | +40 |
 | Carbonized | −30 |
 
-The leaderboard is stored locally on your device (localStorage).
+The leaderboard is stored locally on your device (localStorage) — or globally for
+everyone, if you set up the free shared backend below.
+
+## Global leaderboard (shared across all phones, never erased)
+
+Out of the box the Hall of Flame is per-device. To make one permanent board that
+every phone shares:
+
+1. Go to [console.firebase.google.com](https://console.firebase.google.com) and
+   **Add project** (any name, Analytics not needed — it's free, no card required).
+2. In the project: **Build → Realtime Database → Create Database**, pick any
+   location, start in **locked mode**.
+3. In the **Rules** tab, paste this and publish:
+   ```json
+   {
+     "rules": {
+       "scores": { ".read": true, ".write": true }
+     }
+   }
+   ```
+4. Copy the database URL shown at the top of the Data tab — it looks like
+   `https://your-project-default-rtdb.firebaseio.com`.
+5. Paste it into `FIREBASE_DB_URL` at the top of `game.js`, commit, push. Done —
+   every phone now reads and writes the same Hall of Flame, and it survives
+   cleared browsers, new phones, and the heat death of localStorage.
+
+Notes:
+- If the network is down, the game quietly falls back to the device-local board.
+- You can also test against any backend without editing code via a URL param:
+  `index.html?db=https://your-project-default-rtdb.firebaseio.com`
+- The rules above let anyone who finds the URL write scores. For a game about
+  frying cartoon eggs this is usually fine; Firebase App Check or auth can
+  harden it later if your family turns out to be ruthless cheaters.
 
 ## Run it on your iPhone
 

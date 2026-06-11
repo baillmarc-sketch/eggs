@@ -16,6 +16,13 @@ const STAGE = {                 // egg age thresholds (seconds)
 };                              // > 15  : carbonized
 const SCORES = { gooey: 10, almost: 50, perfect: 100, crispy: 40, burnt: -30 };
 
+// GLOBAL LEADERBOARD: paste your Firebase Realtime Database URL between the
+// quotes below and the Hall of Flame is shared by every phone, forever.
+// Leave empty for a device-local board. Setup steps are in the README.
+const FIREBASE_DB_URL = '';  // e.g. 'https://eggfryer-default-rtdb.firebaseio.com'
+const REMOTE_DB_URL = (new URLSearchParams(location.search).get('db') || FIREBASE_DB_URL)
+  .replace(/\/$/, '');
+
 const PERFECT_LINES = ['EGGCELLENT!', 'YOLK STAR!', 'SUNNY SIDE UP!', 'EGGSTRAORDINARY!', 'OMELETTE YOU COOK!', 'GRADE AAA+!'];
 const GOOEY_LINES   = ['STILL GOOEY!', 'TOO SOON, CHEF!', 'RAW DEAL!'];
 const ALMOST_LINES  = ['ALMOST!', 'SO CLOSE!'];
@@ -737,7 +744,11 @@ function updateHUD() {
 }
 
 // ---------------- leaderboard ----------------
+// Local (per-device) board always works and doubles as the offline fallback.
+// When REMOTE_DB_URL is set, the remote board is the source of truth.
 const LS_KEY = 'eggfryer3000.halloflame';
+let lastRemotePush = Promise.resolve();
+
 function loadBoard() {
   try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; }
   catch { return []; }
@@ -749,10 +760,32 @@ function saveScore(name, pts) {
   board.sort((a, b) => b.pts - a.pts);
   board.length = Math.min(board.length, 10);
   localStorage.setItem(LS_KEY, JSON.stringify(board));
+  if (REMOTE_DB_URL) {
+    lastRemotePush = fetch(`${REMOTE_DB_URL}/scores.json`, {
+      method: 'POST',
+      body: JSON.stringify(entry),
+    }).catch(() => {});
+  }
   return entry;
 }
+async function fetchRemoteBoard() {
+  const res = await fetch(`${REMOTE_DB_URL}/scores.json`);
+  const data = await res.json();
+  return Object.values(data || {})
+    .filter((r) => r && typeof r.pts === 'number' && typeof r.name === 'string')
+    .sort((a, b) => b.pts - a.pts)
+    .slice(0, 10);
+}
 function renderBoard(el, highlight) {
-  const board = loadBoard();
+  paintBoard(el, loadBoard(), highlight);
+  if (REMOTE_DB_URL) {
+    lastRemotePush
+      .then(fetchRemoteBoard)
+      .then((rows) => paintBoard(el, rows, highlight))
+      .catch(() => {}); // offline → the local paint above stands
+  }
+}
+function paintBoard(el, board, highlight) {
   if (!board.length) {
     el.innerHTML = '<div class="board-empty">No fry-lords yet. Be the first! 🥇</div>';
     return;
