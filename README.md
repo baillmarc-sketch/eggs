@@ -14,14 +14,19 @@ climb the **HALL OF FLAME** leaderboard.
    - 🔴 red — crispy… then carbonized 💀
 3. **TAP AN EGG** to serve it. Perfect serves build a combo multiplier (up to ×5).
    Burnt eggs cost you points *and* your dignity.
-4. **DRAG** anywhere to tilt the pan — the eggs slide around. Purely for fun. Mostly.
-5. You have **60 seconds**. Good luck, cadet.
+4. **FLICK UP** on an egg to flip it. A flipped egg served in the perfect window
+   is **OVER EASY** — worth 150 × combo. But flip while it's still gooey and the
+   yolk breaks, capping that egg at +50. Burnt eggs are stuck to the pan.
+5. **DRAG** anywhere to tilt the pan — the eggs slide around. Purely for fun. Mostly.
+6. You have **60 seconds**. Good luck, cadet.
 
 | Serve timing | Points |
 |---|---|
 | Still gooey | +10 |
 | Almost | +50 |
 | **PERFECT** | **+100 × combo** |
+| **PERFECT, flipped (over easy)** | **+150 × combo** |
+| Perfect, but yolk broken | +50 |
 | Bit crispy | +40 |
 | Carbonized | −30 |
 

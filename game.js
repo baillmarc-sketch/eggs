@@ -14,7 +14,7 @@ const STAGE = {                 // egg age thresholds (seconds)
   PERFECT_END: 12,              // 8.5–12: PERFECT window
   CRISPY_END: 15,               // 12–15 : bit crispy
 };                              // > 15  : carbonized
-const SCORES = { gooey: 10, almost: 50, perfect: 100, crispy: 40, burnt: -30 };
+const SCORES = { gooey: 10, almost: 50, perfect: 100, overEasy: 150, crispy: 40, burnt: -30 };
 
 // GLOBAL LEADERBOARD: paste your Firebase Realtime Database URL between the
 // quotes below and the Hall of Flame is shared by every phone, forever.
@@ -28,6 +28,8 @@ const GOOEY_LINES   = ['STILL GOOEY!', 'TOO SOON, CHEF!', 'RAW DEAL!'];
 const ALMOST_LINES  = ['ALMOST!', 'SO CLOSE!'];
 const CRISPY_LINES  = ['BIT CRISPY!', 'EXTRA CRUNCH!'];
 const BURNT_LINES   = ['CARBONIZED!', 'EGG-SASTER!', 'THAT\'S CHARCOAL!'];
+const OVEREASY_LINES = ['OVER EASY!', 'FLIP-TASTIC!', 'BOTH SIDES?! WOW!'];
+const BROKEN_LINES  = ['BROKEN YOLK!', 'STILL TASTY... ISH'];
 const VERDICTS = [
   [0,    'THE GRIDDLE WEEPS. 😭'],
   [200,  'SCRAMBLED ROOKIE 🥄'],
@@ -244,7 +246,11 @@ function makeEgg(slot) {
   group.add(ring);
 
   panGroup.add(group);
-  return { group, white, edge, yolk, ring, pupils, slot, age: 0, alive: true, eyePhase: Math.random() * 10, bubbles: [] };
+  return {
+    group, white, edge, yolk, ring, pupils, slot,
+    age: 0, alive: true, eyePhase: Math.random() * 10, bubbles: [],
+    flipped: false, broken: false, flipping: false,
+  };
 }
 
 // ---------------- cooking visuals ----------------
@@ -261,9 +267,14 @@ const C = {
 
 const bubbleGeo = new THREE.SphereGeometry(0.06, 8, 6);
 
+// yolk silhouette: proud dome / over-easy bump / broken smear
+const NORMAL_YOLK = [1, 0.62, 1], FLIPPED_YOLK = [1.12, 0.36, 1.12], BROKEN_YOLK = [1.5, 0.2, 1.5];
+
 function updateEggLook(egg, now, dt) {
   const a = egg.age;
   const w = egg.white.material, y = egg.yolk.material, r = egg.ring.material, e = egg.edge.material;
+  const yb = egg.broken ? BROKEN_YOLK : egg.flipped ? FLIPPED_YOLK : NORMAL_YOLK;
+  egg.yolk.position.y = (egg.flipped || egg.broken) ? 0.07 : 0.16;
 
   if (a < STAGE.GOOEY) {
     // RAW: translucent, runny, spreading, wobbling like jelly
@@ -278,7 +289,7 @@ function updateEggLook(egg, now, dt) {
       1 + Math.sin(now * 17 + egg.eyePhase) * jig * 2.5,
       spread + Math.cos(now * 11 + egg.eyePhase) * jig
     );
-    egg.yolk.scale.set(1 + Math.sin(now * 15) * jig, 0.62 - Math.sin(now * 15) * jig * 0.5, 1);
+    egg.yolk.scale.set(yb[0] + Math.sin(now * 15) * jig, yb[1] - Math.sin(now * 15) * jig * 0.5, yb[2]);
     y.color.copy(C.rawYolk);
     y.roughness = 0.2;
     e.opacity = 0;
@@ -290,7 +301,7 @@ function updateEggLook(egg, now, dt) {
     w.color.copy(C.cookedWhite);
     w.emissiveIntensity = 0.9;
     egg.white.scale.set(1, 1, 1);
-    egg.yolk.scale.set(1, 0.62, 1);
+    egg.yolk.scale.set(yb[0], yb[1], yb[2]);
     y.color.copy(C.rawYolk).lerp(C.perfectYolk, k);
     y.roughness = 0.2 + 0.2 * k;
     e.opacity = k * 0.9;
@@ -305,7 +316,7 @@ function updateEggLook(egg, now, dt) {
     e.color.copy(C.edgeLight).lerp(C.edgeDark, 0.35);
     const pulse = 0.5 + 0.5 * Math.sin(now * 10);
     egg.white.scale.setScalar(1 + 0.05 * pulse);
-    egg.yolk.scale.set(1, 0.62 + 0.04 * pulse, 1);
+    egg.yolk.scale.set(yb[0], yb[1] + 0.04 * pulse, yb[2]);
     r.color.copy(C.ringPerfect);
     r.opacity = 0.6 + 0.4 * pulse;
     egg.ring.scale.setScalar(1 + 0.1 * pulse);
@@ -324,7 +335,7 @@ function updateEggLook(egg, now, dt) {
     w.emissiveIntensity = 0.9 - 0.5 * k;
     y.emissiveIntensity = 1 - 0.6 * k;
     egg.white.scale.setScalar(1 - 0.06 * k);
-    egg.yolk.scale.set(1, 0.62 - 0.1 * k, 1);
+    egg.yolk.scale.set(yb[0], Math.max(0.1, yb[1] - 0.1 * k), yb[2]);
     egg.ring.scale.setScalar(1);
     egg.group.rotation.z = 0;
     if (Math.random() < dt * 2 * k) spawnSmoke(egg.group);
@@ -337,7 +348,7 @@ function updateEggLook(egg, now, dt) {
     w.emissiveIntensity = 0.4 * (1 - k);
     y.emissiveIntensity = 0.4 * (1 - k);
     egg.white.scale.setScalar(0.94 - 0.08 * k);
-    egg.yolk.scale.set(1 - 0.1 * k, 0.52 - 0.1 * k, 1 - 0.1 * k);
+    egg.yolk.scale.set(yb[0] * (1 - 0.1 * k), Math.max(0.08, yb[1] * 0.85 - 0.08 * k), yb[2] * (1 - 0.1 * k));
     r.color.copy(C.ringBurnt);
     r.opacity = 0.5 + 0.5 * Math.sin(now * 16);
     egg.group.rotation.z = Math.sin(now * 30) * 0.02 * (1 - k);
@@ -383,7 +394,11 @@ function gradeEgg(egg) {
   const a = egg.age;
   if (a < STAGE.GOOEY)       return { pts: SCORES.gooey,  lines: GOOEY_LINES,  color: '#7df9ff', perfect: false, burnt: false };
   if (a < STAGE.ALMOST)      return { pts: SCORES.almost, lines: ALMOST_LINES, color: '#b8ff5e', perfect: false, burnt: false };
-  if (a < STAGE.PERFECT_END) return { pts: SCORES.perfect, lines: PERFECT_LINES, color: '#ffd34d', perfect: true, burnt: false };
+  if (a < STAGE.PERFECT_END) {
+    if (egg.broken) return { pts: SCORES.almost, lines: BROKEN_LINES, color: '#b8ff5e', perfect: false, burnt: false };
+    if (egg.flipped) return { pts: SCORES.overEasy, lines: OVEREASY_LINES, color: '#ffd34d', perfect: true, burnt: false };
+    return { pts: SCORES.perfect, lines: PERFECT_LINES, color: '#ffd34d', perfect: true, burnt: false };
+  }
   if (a < STAGE.CRISPY_END)  return { pts: SCORES.crispy, lines: CRISPY_LINES, color: '#ffb347', perfect: false, burnt: false };
   return { pts: SCORES.burnt, lines: BURNT_LINES, color: '#ff3c5a', perfect: false, burnt: true };
 }
@@ -569,6 +584,8 @@ const sfx = (() => {
     setSizzle(level) { if (sizzleGain) sizzleGain.gain.setTargetAtTime(level, ac.currentTime, 0.2); },
     whoosh: () => noise(0.3, 0.12, 900),
     pop: () => { noise(0.08, 0.3, 3000); tone(420, 0.07, 'triangle', 0.15, 0, 200); },
+    flip() { noise(0.2, 0.14, 1300); tone(330, 0.22, 'sine', 0.14, 0, 550); },
+    thud() { noise(0.09, 0.25, 1400); tone(120, 0.1, 'sine', 0.2, 0, -40); },
     crack() { noise(0.12, 0.4, 2500); tone(140, 0.12, 'sine', 0.25, 0, -60); },
     perfect() { tone(880, 0.09, 'square', 0.12); tone(1318, 0.14, 'square', 0.12, 0.09); tone(1760, 0.18, 'square', 0.1, 0.18); },
     good() { tone(660, 0.1, 'square', 0.1); tone(880, 0.12, 'square', 0.1, 0.1); },
@@ -603,7 +620,8 @@ const sfx = (() => {
 const raycaster = new THREE.Raycaster();
 const tapNDC = new THREE.Vector2();
 
-let pointerHeld = false, dragging = false;
+let pointerHeld = false, gesture = 'none';  // 'none' | 'tilt' | 'flip'
+let downTime = 0, eggAtStart = null;
 const dragStart = { x: 0, y: 0 };
 const tiltTarget = { x: 0, z: 0 };   // where the pan wants to lean
 const tilt = { x: 0, z: 0 };         // where it actually is (springy)
@@ -613,40 +631,51 @@ const panPlane = new THREE.Plane();
 const planeNormal = new THREE.Vector3();
 const tapPoint = new THREE.Vector3();
 
-function handleTap(x, y) {
-  if (state !== 'playing') return;
+// project a screen point onto the (possibly tilted) pan surface plane,
+// in pan-local coords — so the egg you aim at is the one you get, even
+// when eggs overlap on screen
+function projectToPan(x, y) {
   tapNDC.set((x / window.innerWidth) * 2 - 1, -(y / window.innerHeight) * 2 + 1);
   raycaster.setFromCamera(tapNDC, camera);
-
-  // project the tap onto the (possibly tilted) pan surface plane, then pick
-  // by distance to the tap point — so the egg you aim at is the one you get,
-  // even when eggs overlap on screen
   planeNormal.set(0, 1, 0).applyQuaternion(panGroup.quaternion);
   panPlane.setFromNormalAndCoplanarPoint(planeNormal, panGroup.position);
-  if (!raycaster.ray.intersectPlane(panPlane, tapPoint)) return;
-  const local = panGroup.worldToLocal(tapPoint.clone());
+  if (!raycaster.ray.intersectPlane(panPlane, tapPoint)) return null;
+  return panGroup.worldToLocal(tapPoint.clone());
+}
 
-  // 1) nearest egg within grab range wins
-  let bestEgg = null, bestEggD = Infinity;
+function eggNear(local) {
+  let bestEgg = null, bestD = Infinity;
   for (const egg of eggs) {
-    if (!egg.alive) continue;
+    if (!egg.alive || egg.flipping) continue;
     const d = Math.hypot(egg.group.position.x - local.x, egg.group.position.z - local.z);
-    if (d < bestEggD) { bestEggD = d; bestEgg = egg; }
+    if (d < bestD) { bestD = d; bestEgg = egg; }
   }
-  if (bestEgg && bestEggD < 1.05) {
-    serveEgg(bestEgg, x, y);
+  return bestEgg ? { egg: bestEgg, d: bestD } : null;
+}
+
+function handleTap(x, y) {
+  if (state !== 'playing') return;
+  const local = projectToPan(x, y);
+  if (!local) return;
+
+  const near = eggNear(local);
+  let bestSlot = null, bestSlotD = Infinity;
+  for (const s of SLOTS) {
+    if (s.taken) continue;
+    const d = Math.hypot(s.x - local.x, s.z - local.z);
+    if (d < bestSlotD) { bestSlotD = d; bestSlot = s; }
+  }
+
+  // serve the egg when the tap is closer to it than to any free slot —
+  // no dead zones between slots, no front egg stealing back-egg taps
+  if (near && near.d < 1.6 && near.d <= bestSlotD) {
+    serveEgg(near.egg, x, y);
     return;
   }
 
-  // 2) otherwise a tap on the pan cracks a new egg into the nearest free slot
+  // otherwise a tap on the pan cracks a new egg into the nearest free slot
   if (Math.hypot(local.x, local.z) < PAN_R + 0.4) {
-    let best = null, bestD = Infinity;
-    for (const s of SLOTS) {
-      if (s.taken) continue;
-      const d = (s.x - local.x) ** 2 + (s.z - local.z) ** 2;
-      if (d < bestD) { bestD = d; best = s; }
-    }
-    if (best) dropEgg(best);
+    if (bestSlot) dropEgg(bestSlot);
     else {
       popup(x, y, 'PAN FULL!', '#ff9df5', 16);
       sfx.meh();
@@ -656,17 +685,41 @@ function handleTap(x, y) {
 
 renderer.domElement.addEventListener('pointerdown', (e) => {
   pointerHeld = true;
-  dragging = false;
+  gesture = 'none';
+  downTime = performance.now();
   dragStart.x = e.clientX;
   dragStart.y = e.clientY;
+  if (state === 'playing') {
+    const local = projectToPan(e.clientX, e.clientY);
+    const near = local ? eggNear(local) : null;
+    eggAtStart = near && near.d < 1.3 ? near.egg : null;
+  } else {
+    eggAtStart = null;
+  }
 }, { passive: true });
 
 renderer.domElement.addEventListener('pointermove', (e) => {
   if (!pointerHeld) return;
   const dx = e.clientX - dragStart.x;
   const dy = e.clientY - dragStart.y;
-  if (!dragging && Math.hypot(dx, dy) > 14) dragging = true;
-  if (dragging) {
+  if (gesture === 'none') {
+    const elapsed = performance.now() - downTime;
+    if (eggAtStart) {
+      // a quick upward flick that started on an egg = FLIP; the flick gets
+      // priority, so tilt only starts for clearly sideways/downward drags
+      // or once the flick window has passed
+      if (dy < -40 && elapsed < 400) {
+        gesture = 'flip';
+        flipEgg(eggAtStart);
+        return;
+      }
+      if ((Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) || dy > 40 ||
+          (elapsed >= 400 && Math.hypot(dx, dy) > 14)) gesture = 'tilt';
+    } else if (Math.hypot(dx, dy) > 14) {
+      gesture = 'tilt';
+    }
+  }
+  if (gesture === 'tilt') {
     tiltTarget.x = THREE.MathUtils.clamp(dy * 0.0024, -TILT_MAX, TILT_MAX);
     tiltTarget.z = THREE.MathUtils.clamp(-dx * 0.0024, -TILT_MAX, TILT_MAX);
   }
@@ -677,8 +730,9 @@ function releasePointer(e) {
   pointerHeld = false;
   tiltTarget.x = 0;
   tiltTarget.z = 0;
-  if (!dragging && e.type === 'pointerup') handleTap(e.clientX, e.clientY);
-  dragging = false;
+  if (gesture === 'none' && e.type === 'pointerup') handleTap(e.clientX, e.clientY);
+  gesture = 'none';
+  eggAtStart = null;
 }
 renderer.domElement.addEventListener('pointerup', releasePointer, { passive: true });
 renderer.domElement.addEventListener('pointercancel', releasePointer, { passive: true });
@@ -686,6 +740,49 @@ renderer.domElement.addEventListener('pointercancel', releasePointer, { passive:
 document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 document.addEventListener('gesturestart', (e) => e.preventDefault());
 document.addEventListener('dblclick', (e) => e.preventDefault());
+
+// ---------------- flipping ----------------
+function screenPos(obj) {
+  const v = toWorld(obj).project(camera);
+  return [(v.x + 1) / 2 * window.innerWidth, (-v.y + 1) / 2 * window.innerHeight];
+}
+
+function flipEgg(egg) {
+  if (!egg.alive || egg.flipping) return;
+  const [sx, sy] = screenPos(egg.group);
+  if (egg.age >= STAGE.CRISPY_END) {
+    popup(sx, sy - 20, "IT'S STUCK!", '#ff3c5a', 18);
+    sfx.meh();
+    return;
+  }
+  egg.flipping = true;
+  const breaks = egg.age < STAGE.GOOEY && !egg.broken;
+  sfx.flip();
+  if (navigator.vibrate) navigator.vibrate(10);
+
+  tween(0.55, (k) => {
+    if (!egg.alive) return;
+    egg.group.position.y = 0.26 + Math.sin(k * Math.PI) * 1.7;
+    egg.group.rotation.x = k * Math.PI * 2;
+  }, () => {
+    egg.flipping = false;
+    if (!egg.alive) return;
+    egg.group.position.y = 0.26;
+    egg.group.rotation.x = 0;
+    egg.flipped = true;
+    shake = Math.max(shake, 0.1);
+    sfx.thud();
+    burstParticles(toWorld(egg.group), 0xfff7e0, 8, 2);
+    const [lx, ly] = screenPos(egg.group);
+    if (breaks) {
+      egg.broken = true;
+      popup(lx, ly - 30, 'YOLK BROKE!', '#ff9df5', 20);
+      sfx.meh();
+    } else {
+      popup(lx, ly - 30, 'FLIPPED!', '#7df9ff', 18);
+    }
+  });
+}
 
 // ---------------- serving ----------------
 function serveEgg(egg, sx, sy) {
