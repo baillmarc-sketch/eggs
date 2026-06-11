@@ -33,8 +33,16 @@ jobs:
 
           valid = {k: v for k, v in data.items()
                    if isinstance(v, dict) and isinstance(v.get('pts'), (int, float))}
-          # top 3 by points; earlier scores win ties
-          top3 = dict(sorted(valid.items(),
+          # one entry per name (their best; earlier scores win ties)...
+          best = {}
+          for k, v in valid.items():
+              name = v.get('name', '?')
+              cur = best.get(name)
+              if (cur is None or v['pts'] > cur[1]['pts'] or
+                      (v['pts'] == cur[1]['pts'] and v.get('date', 0) < cur[1].get('date', 0))):
+                  best[name] = (k, v)
+          # ...then the top 3 names survive the night
+          top3 = dict(sorted(best.values(),
                              key=lambda kv: (-kv[1]['pts'], kv[1].get('date', 0)))[:3])
 
           if set(top3) == set(data):

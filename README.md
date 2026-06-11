@@ -17,8 +17,6 @@ climb the **HALL OF FLAME** leaderboard.
 4. **FLICK UP** on an egg to flip it. A flipped egg served in the perfect window
    is **OVER EASY** — worth 150 × combo. But flip while it's still gooey and the
    yolk breaks, capping that egg at +50. Burnt eggs are stuck to the pan.
-   Flip the same egg **twice** for the **EGGS HANCOCK BONUS**: eggs rain from the
-   sky and that egg's final serve earns **+150 extra points**.
 5. **DRAG** anywhere to tilt the pan — the eggs slide around. Purely for fun. Mostly.
 6. You have **60 seconds**. Good luck, cadet.
 
@@ -31,7 +29,8 @@ climb the **HALL OF FLAME** leaderboard.
 | Perfect, but yolk broken | +50 |
 | Bit crispy | +40 |
 | Carbonized | −30 |
-| **Eggs Hancock** (double flip) | **+150 on top of the serve** |
+
+(Rumor has it the game hides a few secrets — certain names, certain moves...)
 
 The leaderboard is stored locally on your device (localStorage) — or globally for
 everyone, if you set up the free shared backend below.
