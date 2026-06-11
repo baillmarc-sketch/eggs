@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0118">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍳</text></svg>">
+<title>EGG FRYER 3000 — Galactic Griddle</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    position: fixed;
+    overscroll-behavior: none;
+    touch-action: none;
+    background: #0a0118;
+    font-family: -apple-system, "SF Pro Rounded", "Avenir Next", "Helvetica Neue", sans-serif;
+    color: #fff;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  canvas { display: block; }
+
+  /* ============ HUD ============ */
+  #hud {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    padding: calc(env(safe-area-inset-top, 0px) + 10px) 14px 8px;
+    display: none;
+    justify-content: space-between;
+    align-items: flex-start;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .hud-box {
+    background: rgba(20, 5, 50, 0.55);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1.5px solid rgba(0, 229, 255, 0.5);
+    border-radius: 14px;
+    padding: 6px 14px;
+    text-align: center;
+    box-shadow: 0 0 18px rgba(0, 229, 255, 0.25), inset 0 0 12px rgba(0, 229, 255, 0.08);
+  }
+  .hud-label {
+    font-size: 10px;
+    letter-spacing: 2.5px;
+    color: #7df9ff;
+    opacity: 0.85;
+  }
+  .hud-value {
+    font-size: 26px;
+    font-weight: 900;
+    font-style: italic;
+    text-shadow: 0 0 12px rgba(0, 229, 255, 0.8);
+    font-variant-numeric: tabular-nums;
+  }
+  #timerBox .hud-value { color: #fffb96; text-shadow: 0 0 12px rgba(255, 251, 150, 0.9); }
+  #timerBox.hurry { animation: hurryPulse 0.5s infinite alternate; }
+  @keyframes hurryPulse {
+    from { border-color: rgba(255, 60, 90, 0.6); transform: scale(1); }
+    to   { border-color: rgba(255, 60, 90, 1);   transform: scale(1.08); box-shadow: 0 0 26px rgba(255,60,90,0.7); }
+  }
+  #comboBox { transition: transform 0.15s; }
+  #comboBox .hud-value { color: #ff9df5; text-shadow: 0 0 12px rgba(255, 100, 245, 0.9); }
+  #comboBox.bump { transform: scale(1.25) rotate(-4deg); }
+
+  /* ============ floating score popups ============ */
+  .popup {
+    position: fixed;
+    transform: translate(-50%, -50%);
+    font-weight: 900;
+    font-style: italic;
+    font-size: 22px;
+    pointer-events: none;
+    z-index: 20;
+    white-space: nowrap;
+    animation: popFloat 0.95s ease-out forwards;
+    text-shadow: 0 2px 0 rgba(0,0,0,0.55), 0 0 16px currentColor;
+  }
+  @keyframes popFloat {
+    0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(-8deg); }
+    18%  { opacity: 1; transform: translate(-50%, -60%) scale(1.25) rotate(3deg); }
+    100% { opacity: 0; transform: translate(-50%, -190%) scale(1) rotate(-2deg); }
+  }
+
+  /* ============ overlays ============ */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: calc(env(safe-area-inset-top, 0px) + 20px) 24px calc(env(safe-area-inset-bottom, 0px) + 24px);
+    background: radial-gradient(ellipse at 50% 30%, rgba(60, 10, 120, 0.55), rgba(5, 0, 20, 0.88) 75%);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    text-align: center;
+  }
+  .overlay.show { display: flex; }
+
+  .game-title {
+    font-size: clamp(38px, 11vw, 64px);
+    font-weight: 900;
+    font-style: italic;
+    line-height: 1.02;
+    letter-spacing: -1px;
+    background: linear-gradient(180deg, #fffb96 8%, #ffb300 45%, #ff5ef7 80%, #00e5ff 110%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 18px rgba(255, 179, 0, 0.45)) drop-shadow(0 4px 0 rgba(0,0,0,0.4));
+    animation: titleWobble 3s ease-in-out infinite;
+  }
+  @keyframes titleWobble {
+    0%, 100% { transform: rotate(-2deg) scale(1); }
+    50%      { transform: rotate(2deg) scale(1.04); }
+  }
+  .subtitle {
+    margin-top: 6px;
+    font-size: 13px;
+    letter-spacing: 4px;
+    color: #7df9ff;
+    text-shadow: 0 0 10px rgba(0, 229, 255, 0.8);
+  }
+  .big-egg { font-size: 64px; margin: 10px 0 2px; animation: eggBob 1.6s ease-in-out infinite; }
+  @keyframes eggBob {
+    0%, 100% { transform: translateY(0) rotate(-6deg); }
+    50%      { transform: translateY(-12px) rotate(6deg); }
+  }
+  .howto {
+    margin: 16px 0 6px;
+    font-size: 14px;
+    line-height: 1.85;
+    color: rgba(255,255,255,0.92);
+    background: rgba(20, 5, 50, 0.5);
+    border: 1px solid rgba(125, 249, 255, 0.3);
+    border-radius: 16px;
+    padding: 12px 18px;
+    max-width: 340px;
+  }
+  .howto b { color: #fffb96; }
+
+  .neon-btn {
+    margin-top: 18px;
+    font-family: inherit;
+    font-size: 22px;
+    font-weight: 900;
+    font-style: italic;
+    letter-spacing: 2px;
+    color: #1a0533;
+    background: linear-gradient(180deg, #fffb96, #ffb300);
+    border: none;
+    border-radius: 999px;
+    padding: 16px 44px;
+    box-shadow: 0 0 24px rgba(255, 179, 0, 0.65), 0 6px 0 #b86b00;
+    animation: btnPulse 1.4s ease-in-out infinite;
+    cursor: pointer;
+  }
+  .neon-btn:active { transform: translateY(4px); box-shadow: 0 0 24px rgba(255, 179, 0, 0.65), 0 2px 0 #b86b00; }
+  @keyframes btnPulse {
+    0%, 100% { filter: brightness(1); }
+    50%      { filter: brightness(1.18); }
+  }
+  .neon-btn.alt {
+    background: linear-gradient(180deg, #9ffcff, #00b3d9);
+    box-shadow: 0 0 24px rgba(0, 229, 255, 0.6), 0 6px 0 #006e87;
+    font-size: 17px;
+    padding: 12px 32px;
+  }
+  .neon-btn.alt:active { box-shadow: 0 0 24px rgba(0, 229, 255, 0.6), 0 2px 0 #006e87; }
+
+  /* ============ leaderboard ============ */
+  .board-title {
+    margin-top: 22px;
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: 4px;
+    color: #ff9df5;
+    text-shadow: 0 0 12px rgba(255, 100, 245, 0.8);
+  }
+  .board {
+    margin-top: 8px;
+    width: min(320px, 84vw);
+    background: rgba(20, 5, 50, 0.55);
+    border: 1.5px solid rgba(255, 100, 245, 0.4);
+    border-radius: 16px;
+    padding: 10px 16px;
+    box-shadow: 0 0 18px rgba(255, 100, 245, 0.2);
+    max-height: 32vh;
+    overflow-y: auto;
+  }
+  .board-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 4px 0;
+    font-size: 16px;
+    font-weight: 700;
+    border-bottom: 1px dashed rgba(255,255,255,0.12);
+  }
+  .board-row:last-child { border-bottom: none; }
+  .board-row .rank { color: #7df9ff; width: 34px; text-align: left; font-style: italic; }
+  .board-row .name { flex: 1; text-align: left; letter-spacing: 1px; }
+  .board-row .pts  { color: #fffb96; font-variant-numeric: tabular-nums; }
+  .board-row.me { color: #1a0533; background: linear-gradient(90deg, #fffb96, #ffd34d); border-radius: 8px; padding: 4px 8px; }
+  .board-row.me .rank, .board-row.me .pts { color: #1a0533; }
+  .board-empty { font-size: 14px; opacity: 0.7; padding: 8px 0; }
+
+  /* ============ game over ============ */
+  .final-label { font-size: 13px; letter-spacing: 4px; color: #7df9ff; margin-top: 10px; }
+  .final-score {
+    font-size: clamp(52px, 16vw, 84px);
+    font-weight: 900;
+    font-style: italic;
+    color: #fffb96;
+    text-shadow: 0 0 28px rgba(255, 251, 150, 0.9), 0 5px 0 rgba(0,0,0,0.45);
+    line-height: 1.1;
+  }
+  .verdict { font-size: 17px; font-weight: 800; color: #ff9df5; margin-top: 4px; min-height: 22px; }
+  #nameEntry { margin-top: 16px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  #nameInput {
+    font-family: inherit;
+    font-size: 24px;
+    font-weight: 900;
+    font-style: italic;
+    letter-spacing: 6px;
+    text-align: center;
+    text-transform: uppercase;
+    color: #fffb96;
+    background: rgba(20, 5, 50, 0.7);
+    border: 2px solid rgba(0, 229, 255, 0.6);
+    border-radius: 14px;
+    padding: 10px 14px;
+    width: 220px;
+    outline: none;
+    caret-color: #ff5ef7;
+  }
+  #nameInput::placeholder { color: rgba(125, 249, 255, 0.4); letter-spacing: 3px; font-size: 16px; }
+
+  .btn-row { display: flex; gap: 12px; margin-top: 6px; flex-wrap: wrap; justify-content: center; }
+
+  /* ============ a very important easter egg ============ */
+  #smooch {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    overflow: hidden;
+    background: radial-gradient(ellipse at 50% 40%, rgba(255, 94, 247, 0.42), rgba(40, 0, 30, 0.92) 78%);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+  }
+  #smooch.show { display: flex; }
+  .smooch-lips {
+    font-size: 120px;
+    line-height: 1;
+    animation: smoochPop 0.9s cubic-bezier(0.18, 1.6, 0.4, 1) both, smoochBeat 1.1s 0.9s ease-in-out infinite;
+    filter: drop-shadow(0 0 30px rgba(255, 94, 167, 0.9));
+  }
+  @keyframes smoochPop {
+    0%   { transform: scale(0) rotate(-30deg); }
+    100% { transform: scale(1) rotate(-8deg); }
+  }
+  @keyframes smoochBeat {
+    0%, 100% { transform: scale(1) rotate(-8deg); }
+    50%      { transform: scale(1.12) rotate(-4deg); }
+  }
+  .smooch-text {
+    margin-top: 14px;
+    font-size: clamp(34px, 10vw, 52px);
+    font-weight: 900;
+    font-style: italic;
+    background: linear-gradient(180deg, #ffd6f4 10%, #ff5ea7 60%, #ff2d78 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 18px rgba(255, 94, 167, 0.7)) drop-shadow(0 3px 0 rgba(0,0,0,0.35));
+    animation: smoochTextIn 0.7s 0.45s cubic-bezier(0.18, 1.6, 0.4, 1) both;
+  }
+  .smooch-text span {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.55em;
+    letter-spacing: 2px;
+  }
+  @keyframes smoochTextIn {
+    0%   { opacity: 0; transform: translateY(40px) scale(0.6); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .heart {
+    position: absolute;
+    bottom: -60px;
+    pointer-events: none;
+    animation: heartFloat linear forwards;
+  }
+  @keyframes heartFloat {
+    0%   { opacity: 0; transform: translateY(0) rotate(-12deg) scale(0.6); }
+    12%  { opacity: 1; }
+    100% { opacity: 0; transform: translateY(-105vh) rotate(14deg) scale(1.25); }
+  }
+
+  /* ============ and one for the big guy ============ */
+  #santa {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    overflow: hidden;
+    background: radial-gradient(ellipse at 50% 40%, rgba(255, 60, 60, 0.4), rgba(8, 30, 16, 0.93) 78%);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+  }
+  #santa.show { display: flex; }
+  .santa-face {
+    font-size: 120px;
+    line-height: 1;
+    animation: smoochPop 0.9s cubic-bezier(0.18, 1.6, 0.4, 1) both, bellyLaugh 0.42s 0.9s ease-in-out infinite;
+    filter: drop-shadow(0 0 30px rgba(255, 80, 80, 0.9));
+  }
+  @keyframes bellyLaugh {
+    0%, 100% { transform: scale(1, 1) rotate(-3deg); }
+    50%      { transform: scale(1.08, 0.92) rotate(3deg) translateY(6px); }
+  }
+  .santa-text {
+    margin-top: 14px;
+    font-size: clamp(38px, 11vw, 56px);
+    font-weight: 900;
+    font-style: italic;
+    background: linear-gradient(180deg, #ffffff 12%, #ffd6d6 40%, #ff4444 75%, #b80000 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 18px rgba(255, 80, 80, 0.7)) drop-shadow(0 3px 0 rgba(0,0,0,0.35));
+    animation: smoochTextIn 0.7s 0.45s cubic-bezier(0.18, 1.6, 0.4, 1) both;
+  }
+  .santa-text span {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.42em;
+    letter-spacing: 3px;
+    -webkit-text-fill-color: #b8ffce;
+    filter: none;
+    text-shadow: 0 0 12px rgba(120, 255, 170, 0.8);
+  }
+  .flake {
+    position: absolute;
+    top: -60px;
+    pointer-events: none;
+    animation: flakeFall linear forwards;
+  }
+  @keyframes flakeFall {
+    0%   { opacity: 0; transform: translateY(0) rotate(0deg); }
+    10%  { opacity: 1; }
+    100% { opacity: 0.85; transform: translateY(108vh) rotate(330deg); }
+  }
+
+  /* ============ and a dancing hermit crab for Ryan ============ */
+  #crab {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    overflow: hidden;
+    background: radial-gradient(ellipse at 50% 45%, rgba(0, 190, 210, 0.38), rgba(4, 22, 34, 0.92) 78%);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+  }
+  #crab.show { display: flex; }
+  .crab-track {
+    position: absolute;
+    left: 0; right: 0;
+    top: 34%;
+    height: 0;
+    pointer-events: none;
+  }
+  .crab-dancer {
+    position: absolute;
+    font-size: 92px;
+    line-height: 1;
+    animation: crabWalk 4.4s 0.15s linear both;
+  }
+  .crab-inner {
+    display: inline-block;
+    position: relative;
+    animation: crabBop 0.32s ease-in-out infinite alternate;
+    filter: drop-shadow(0 0 24px rgba(255, 140, 60, 0.8));
+  }
+  .crab-shell {
+    position: absolute;
+    top: -46px;
+    left: 16px;
+    font-size: 58px;
+    animation: shellRock 0.64s ease-in-out infinite;
+  }
+  @keyframes crabWalk {
+    from { left: -140px; }
+    to   { left: 104%; }
+  }
+  @keyframes crabBop {
+    from { transform: translateY(0) rotate(-11deg) scale(1, 0.92); }
+    to   { transform: translateY(-30px) rotate(11deg) scale(1, 1.08); }
+  }
+  @keyframes shellRock {
+    0%, 100% { transform: rotate(-16deg); }
+    50%      { transform: rotate(16deg); }
+  }
+  .crab-text {
+    margin-top: 26vh;
+    font-size: clamp(36px, 10.5vw, 54px);
+    font-weight: 900;
+    font-style: italic;
+    background: linear-gradient(180deg, #b8fff4 10%, #00d9c0 45%, #ff9d45 80%, #ff5e3a 105%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 18px rgba(0, 217, 192, 0.7)) drop-shadow(0 3px 0 rgba(0,0,0,0.35));
+    animation: smoochTextIn 0.7s 0.45s cubic-bezier(0.18, 1.6, 0.4, 1) both;
+  }
+  .crab-text span {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.42em;
+    letter-spacing: 3px;
+    -webkit-text-fill-color: #ffd9a8;
+    filter: none;
+    text-shadow: 0 0 12px rgba(255, 157, 69, 0.8);
+  }
+  .note {
+    position: absolute;
+    bottom: -60px;
+    pointer-events: none;
+    animation: heartFloat linear forwards;
+  }
+</style>
+</head>
+<body>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="hud-box" id="scoreBox">
+    <div class="hud-label">SCORE</div>
+    <div class="hud-value" id="scoreVal">0</div>
+  </div>
+  <div class="hud-box" id="timerBox">
+    <div class="hud-label">FRY TIME</div>
+    <div class="hud-value" id="timerVal">60</div>
+  </div>
+  <div class="hud-box" id="comboBox">
+    <div class="hud-label">COMBO</div>
+    <div class="hud-value" id="comboVal">×1</div>
+  </div>
+</div>
+
+<!-- START SCREEN -->
+<div class="overlay show" id="startScreen">
+  <div class="big-egg">🍳</div>
+  <div class="game-title">EGG FRYER<br>3000</div>
+  <div class="subtitle">★ GALACTIC GRIDDLE ★</div>
+  <div class="howto">
+    <b>TAP THE PAN</b> to crack a space egg 🥚<br>
+    <b>TAP THE EGG</b> when its ring glows <b>GOLD</b> ✨<br>
+    <b>FLICK UP</b> to flip — <b>OVER EASY</b> bonus! 🔄<br>
+    <b>DRAG</b> to tilt the pan (the eggs slide!) 🍳<br>
+    Don't let them burn, cadet! 🔥
+  </div>
+  <button class="neon-btn" id="startBtn">START FRYING</button>
+  <div class="board-title">🏆 HALL OF FLAME 🏆</div>
+  <div class="board" id="startBoard"></div>
+</div>
+
+<!-- GAME OVER SCREEN -->
+<div class="overlay" id="overScreen">
+  <div class="big-egg" id="overEmoji">🍽️</div>
+  <div class="game-title" style="font-size: clamp(30px,9vw,48px);">ORDER UP!</div>
+  <div class="final-label">FINAL SCORE</div>
+  <div class="final-score" id="finalScore">0</div>
+  <div class="verdict" id="verdict"></div>
+  <div id="nameEntry">
+    <input id="nameInput" maxlength="8" placeholder="YOUR NAME" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="done">
+    <button class="neon-btn alt" id="saveBtn">SAVE TO HALL OF FLAME</button>
+  </div>
+  <div class="board-title" id="overBoardTitle" style="display:none;">🏆 HALL OF FLAME 🏆</div>
+  <div class="board" id="overBoard" style="display:none;"></div>
+  <div class="btn-row">
+    <button class="neon-btn" id="againBtn">FRY AGAIN</button>
+  </div>
+</div>
+
+<!-- shh, this one's for Anna -->
+<div id="smooch">
+  <div class="smooch-lips">💋</div>
+  <div class="smooch-text">I love you!<span>xo, MB</span></div>
+</div>
+
+<!-- and one for the big guy -->
+<div id="santa">
+  <div class="santa-face">🎅</div>
+  <div class="santa-text">HO! HO! HO!<span>MERRY FRY-MAS! 🎄</span></div>
+</div>
+
+<!-- and a little dancer for Ryan -->
+<div id="crab">
+  <div class="crab-track">
+    <div class="crab-dancer">
+      <span class="crab-inner">🦀<span class="crab-shell">🐚</span></span>
+    </div>
+  </div>
+  <div class="crab-text">CRAB RAVE!<span>DANCE, RYAN, DANCE! 🦀</span></div>
+</div>
+
+<script type="module" src="./game.js"></script>
+</body>
+</html>
