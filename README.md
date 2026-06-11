@@ -14,7 +14,8 @@ climb the **HALL OF FLAME** leaderboard.
    - 🔴 red — crispy… then carbonized 💀
 3. **TAP AN EGG** to serve it. Perfect serves build a combo multiplier (up to ×5).
    Burnt eggs cost you points *and* your dignity.
-4. You have **60 seconds**. Good luck, cadet.
+4. **DRAG** anywhere to tilt the pan — the eggs slide around. Purely for fun. Mostly.
+5. You have **60 seconds**. Good luck, cadet.
 
 | Serve timing | Points |
 |---|---|

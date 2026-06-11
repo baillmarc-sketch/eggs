@@ -198,7 +198,15 @@ function makeEgg(slot) {
     emissive: 0x6b6356, emissiveIntensity: 0.9,
   });
   const white = new THREE.Mesh(makeWhiteGeometry(), whiteMat);
+  white.renderOrder = 1;
   group.add(white);
+
+  // browned edge that peeks out from under the white as it cooks
+  const edgeMat = new THREE.MeshStandardMaterial({ color: 0xdf9c3f, roughness: 0.6, transparent: true, opacity: 0 });
+  const edge = new THREE.Mesh(white.geometry, edgeMat);
+  edge.scale.set(1.13, 0.5, 1.13);
+  edge.position.y = -0.03;
+  group.add(edge);
 
   const yolkMat = new THREE.MeshStandardMaterial({ color: 0xffc400, roughness: 0.3, metalness: 0.1, emissive: 0x7a4d00, emissiveIntensity: 1 });
   const yolk = new THREE.Mesh(new THREE.SphereGeometry(0.34, 20, 14), yolkMat);
@@ -237,74 +245,138 @@ function makeEgg(slot) {
   group.add(hit);
 
   panGroup.add(group);
-  return { group, white, yolk, ring, hit, pupils, slot, age: 0, alive: true, eyePhase: Math.random() * 10 };
+  return { group, white, edge, yolk, ring, hit, pupils, slot, age: 0, alive: true, eyePhase: Math.random() * 10, bubbles: [] };
 }
 
 // ---------------- cooking visuals ----------------
 const C = {
-  rawWhite: new THREE.Color(0xfff7e0), cookedWhite: new THREE.Color(0xffffff),
-  crispyWhite: new THREE.Color(0xd9a05a), burntWhite: new THREE.Color(0x3a2412),
+  rawWhite: new THREE.Color(0xfff0c2), cookedWhite: new THREE.Color(0xffffff),
+  crispyWhite: new THREE.Color(0xd9a05a), burntWhite: new THREE.Color(0x33200f),
   rawYolk: new THREE.Color(0xffc400), perfectYolk: new THREE.Color(0xff9d00),
-  crispyYolk: new THREE.Color(0xb86b00), burntYolk: new THREE.Color(0x4a2a08),
+  crispyYolk: new THREE.Color(0xb86b00), burntYolk: new THREE.Color(0x3d2206),
+  edgeLight: new THREE.Color(0xdf9c3f), edgeDark: new THREE.Color(0x6b3c14),
+  edgeBurnt: new THREE.Color(0x180e06),
   ringRaw: new THREE.Color(0x00e5ff), ringAlmost: new THREE.Color(0xb8ff5e),
   ringPerfect: new THREE.Color(0xffd34d), ringBurnt: new THREE.Color(0xff3c5a),
 };
-const tmpColor = new THREE.Color();
 
-function updateEggLook(egg, now) {
+const bubbleGeo = new THREE.SphereGeometry(0.06, 8, 6);
+
+function updateEggLook(egg, now, dt) {
   const a = egg.age;
-  const w = egg.white.material, y = egg.yolk.material, r = egg.ring.material;
+  const w = egg.white.material, y = egg.yolk.material, r = egg.ring.material, e = egg.edge.material;
 
   if (a < STAGE.GOOEY) {
+    // RAW: translucent, runny, spreading, wobbling like jelly
     const k = a / STAGE.GOOEY;
-    w.opacity = 0.78 + 0.22 * k;
+    w.opacity = 0.55 + 0.45 * k;
     w.color.copy(C.rawWhite).lerp(C.cookedWhite, k);
+    w.emissiveIntensity = 0.5 + 0.4 * k;
+    const jig = (1 - k) * 0.08;
+    const spread = 0.78 + 0.22 * k;
+    egg.white.scale.set(
+      spread + Math.sin(now * 13 + egg.eyePhase) * jig,
+      1 + Math.sin(now * 17 + egg.eyePhase) * jig * 2.5,
+      spread + Math.cos(now * 11 + egg.eyePhase) * jig
+    );
+    egg.yolk.scale.set(1 + Math.sin(now * 15) * jig, 0.62 - Math.sin(now * 15) * jig * 0.5, 1);
     y.color.copy(C.rawYolk);
+    y.roughness = 0.2;
+    e.opacity = 0;
     r.color.copy(C.ringRaw).lerp(C.ringAlmost, k);
   } else if (a < STAGE.ALMOST) {
+    // SETTING: solid white, golden edge starts creeping in
     const k = (a - STAGE.GOOEY) / (STAGE.ALMOST - STAGE.GOOEY);
     w.opacity = 1;
     w.color.copy(C.cookedWhite);
+    w.emissiveIntensity = 0.9;
+    egg.white.scale.set(1, 1, 1);
+    egg.yolk.scale.set(1, 0.62, 1);
     y.color.copy(C.rawYolk).lerp(C.perfectYolk, k);
+    y.roughness = 0.2 + 0.2 * k;
+    e.opacity = k * 0.9;
+    e.color.copy(C.edgeLight);
     r.color.copy(C.ringAlmost).lerp(C.ringPerfect, k);
   } else if (a < STAGE.PERFECT_END) {
-    // PERFECT — ring pulses gold, egg does a happy jiggle
+    // PERFECT — golden edge, puffed up proud, happy jiggle, ring pulses gold
     w.opacity = 1;
     w.color.copy(C.cookedWhite);
     y.color.copy(C.perfectYolk);
+    e.opacity = 1;
+    e.color.copy(C.edgeLight).lerp(C.edgeDark, 0.35);
     const pulse = 0.5 + 0.5 * Math.sin(now * 10);
+    egg.white.scale.setScalar(1 + 0.05 * pulse);
+    egg.yolk.scale.set(1, 0.62 + 0.04 * pulse, 1);
     r.color.copy(C.ringPerfect);
     r.opacity = 0.6 + 0.4 * pulse;
     egg.ring.scale.setScalar(1 + 0.1 * pulse);
     egg.group.rotation.z = Math.sin(now * 12) * 0.05;
+    if (Math.random() < dt * 3) {
+      const p = toWorld(egg.group); p.y += 0.6;
+      spawnParticle(p, 0xffd34d, new THREE.Vector3((Math.random() - 0.5) * 0.6, 1.2, 0), 0.5, 0.6, true);
+    }
   } else if (a < STAGE.CRISPY_END) {
+    // CRISPY: browning all over, edge darkens, yolk deflates
     const k = (a - STAGE.PERFECT_END) / (STAGE.CRISPY_END - STAGE.PERFECT_END);
     w.color.copy(C.cookedWhite).lerp(C.crispyWhite, k);
     y.color.copy(C.perfectYolk).lerp(C.crispyYolk, k);
+    e.color.copy(C.edgeLight).lerp(C.edgeDark, 0.35 + 0.65 * k);
     r.color.copy(C.ringPerfect).lerp(C.ringBurnt, k);
     w.emissiveIntensity = 0.9 - 0.5 * k;
     y.emissiveIntensity = 1 - 0.6 * k;
+    egg.white.scale.setScalar(1 - 0.06 * k);
+    egg.yolk.scale.set(1, 0.62 - 0.1 * k, 1);
     egg.ring.scale.setScalar(1);
     egg.group.rotation.z = 0;
+    if (Math.random() < dt * 2 * k) spawnSmoke(egg.group);
   } else {
-    // burnt: smoking sad lump
+    // BURNT: charred, shriveled, smoking, eyes spinning dizzy
     const k = Math.min(1, (a - STAGE.CRISPY_END) / 2);
     w.color.copy(C.crispyWhite).lerp(C.burntWhite, k);
     y.color.copy(C.crispyYolk).lerp(C.burntYolk, k);
+    e.color.copy(C.edgeDark).lerp(C.edgeBurnt, k);
     w.emissiveIntensity = 0.4 * (1 - k);
     y.emissiveIntensity = 0.4 * (1 - k);
+    egg.white.scale.setScalar(0.94 - 0.08 * k);
+    egg.yolk.scale.set(1 - 0.1 * k, 0.52 - 0.1 * k, 1 - 0.1 * k);
     r.color.copy(C.ringBurnt);
     r.opacity = 0.5 + 0.5 * Math.sin(now * 16);
+    egg.group.rotation.z = Math.sin(now * 30) * 0.02 * (1 - k);
     if (Math.random() < 0.12) spawnSmoke(egg.group);
   }
 
-  // googly pupil wiggle
-  const wig = Math.sin(now * 7 + egg.eyePhase) * 0.03;
-  const wig2 = Math.cos(now * 5.3 + egg.eyePhase) * 0.02;
+  // sizzle bubbles on the white while it cooks
+  if (a > 3 && a < STAGE.CRISPY_END && Math.random() < dt * 4) {
+    const mat = new THREE.MeshBasicMaterial({ color: 0xfffbee, transparent: true, opacity: 0.75 });
+    const b = new THREE.Mesh(bubbleGeo, mat);
+    const ang = Math.random() * Math.PI * 2, rad = 0.2 + Math.random() * 0.5;
+    b.position.set(Math.cos(ang) * rad, 0.13, Math.sin(ang) * rad);
+    b.scale.setScalar(0.4);
+    egg.group.add(b);
+    egg.bubbles.push({ m: b, life: 0.45 });
+  }
+  for (let i = egg.bubbles.length - 1; i >= 0; i--) {
+    const b = egg.bubbles[i];
+    b.life -= dt;
+    b.m.scale.setScalar(0.4 + (0.45 - b.life) * 2.2);
+    b.m.material.opacity = Math.max(0, b.life * 1.7);
+    if (b.life <= 0) {
+      egg.group.remove(b.m);
+      b.m.material.dispose();
+      egg.bubbles.splice(i, 1);
+    }
+  }
+
+  // googly pupils: wiggle normally, spin dizzily when burnt
   for (let i = 0; i < egg.pupils.length; i++) {
     const sx = i === 0 ? -1 : 1;
-    egg.pupils[i].position.x = sx * 0.13 + wig;
-    egg.pupils[i].position.y = 0.35 + wig2;
+    if (a >= STAGE.CRISPY_END) {
+      egg.pupils[i].position.x = sx * 0.13 + Math.cos(now * 9 + i * Math.PI) * 0.05;
+      egg.pupils[i].position.y = 0.35 + Math.sin(now * 9 + i * Math.PI) * 0.04;
+    } else {
+      egg.pupils[i].position.x = sx * 0.13 + Math.sin(now * 7 + egg.eyePhase) * 0.03;
+      egg.pupils[i].position.y = 0.35 + Math.cos(now * 5.3 + egg.eyePhase) * 0.02;
+    }
   }
 }
 
@@ -317,14 +389,22 @@ function gradeEgg(egg) {
   return { pts: SCORES.burnt, lines: BURNT_LINES, color: '#ff3c5a', perfect: false, burnt: true };
 }
 
-// ---------------- falling shell eggs ----------------
+// ---------------- falling shell eggs + crack animation ----------------
 const drops = [];
+const shellBits = [];
+
+function makeShellHalf(top) {
+  // hemisphere with open rim so the cracked halves look hollow
+  const geo = new THREE.SphereGeometry(0.42, 18, 9, 0, Math.PI * 2, top ? 0 : Math.PI / 2, Math.PI / 2);
+  return new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+    color: 0xfdf3dc, roughness: 0.5, side: THREE.DoubleSide, transparent: true,
+  }));
+}
+
 function dropEgg(slot) {
   slot.taken = true;
-  const shell = new THREE.Mesh(
-    new THREE.SphereGeometry(0.42, 18, 14),
-    new THREE.MeshStandardMaterial({ color: 0xfdf3dc, roughness: 0.5 })
-  );
+  const shell = new THREE.Group();
+  shell.add(makeShellHalf(true), makeShellHalf(false));
   shell.scale.set(1, 1.3, 1);
   shell.position.set(slot.x, 8, slot.z);
   panGroup.add(shell);
@@ -332,20 +412,60 @@ function dropEgg(slot) {
   sfx.whoosh();
 }
 
+const crackingShells = [];
 function landEgg(drop) {
-  panGroup.remove(drop.shell);
-  disposeObject(drop.shell);
-  const egg = makeEgg(drop.slot);
-  eggs.push(egg);
-  // splat: squash & stretch in
-  egg.group.scale.set(0.01, 0.01, 0.01);
-  tween(0.5, (k) => {
-    const e = easeOutElastic(k);
-    egg.group.scale.set(e, Math.max(0.05, e * (1 - 0.3 * Math.sin(k * Math.PI))), e);
-  });
-  burstParticles(toWorld(egg.group), 0xfff7e0, 10, 2.2);
-  shake = Math.max(shake, 0.12);
+  const { shell, slot } = drop;
+  crackingShells.push(shell);
+  shell.position.y = 0.55;
+  shell.rotation.set(0, 0, 0);
   sfx.crack();
+  shake = Math.max(shake, 0.12);
+
+  // 1) the shell squashes against the pan...
+  tween(0.1, (k) => {
+    shell.scale.set(1 + 0.3 * k, 1.3 * (1 - 0.4 * k), 1 + 0.3 * k);
+  }, () => {
+    // 2) ...then bursts into two halves that fly apart
+    const halves = shell.children.slice();
+    for (let i = 0; i < halves.length; i++) {
+      const half = halves[i];
+      const side = i === 0 ? 1 : -1;
+      shell.remove(half);
+      half.scale.set(1, 1.3, 1);
+      half.position.set(slot.x, 0.55 + (i === 0 ? 0.25 : 0), slot.z);
+      panGroup.add(half);
+      shellBits.push({
+        m: half,
+        vel: new THREE.Vector3(side * (1.2 + Math.random()), 3.2 + Math.random() * 1.5, (Math.random() - 0.5) * 2),
+        angVel: new THREE.Vector3(side * (6 + Math.random() * 6), Math.random() * 4, side * 5),
+        life: 0.9,
+      });
+    }
+    panGroup.remove(shell);
+    crackingShells.splice(crackingShells.indexOf(shell), 1);
+    sfx.pop();
+
+    // 3) and the fried egg splats in underneath
+    const egg = makeEgg(slot);
+    eggs.push(egg);
+    egg.group.scale.set(0.01, 0.01, 0.01);
+    tween(0.5, (k) => {
+      const e = easeOutElastic(k);
+      egg.group.scale.set(e, Math.max(0.05, e * (1 - 0.3 * Math.sin(k * Math.PI))), e);
+    });
+    burstParticles(toWorld(egg.group), 0xfff7e0, 10, 2.2);
+  });
+}
+
+const flyingEggs = [];
+function clearTransients() {
+  for (const b of shellBits) { panGroup.remove(b.m); disposeObject(b.m); }
+  shellBits.length = 0;
+  for (const s of crackingShells) { panGroup.remove(s); disposeObject(s); }
+  crackingShells.length = 0;
+  for (const g of flyingEggs) { panGroup.remove(g); disposeObject(g); }
+  flyingEggs.length = 0;
+  tweens.length = 0;
 }
 
 // ---------------- particles (sparks / smoke / confetti) ----------------
@@ -449,6 +569,7 @@ const sfx = (() => {
     unlock: () => ctx(),
     setSizzle(level) { if (sizzleGain) sizzleGain.gain.setTargetAtTime(level, ac.currentTime, 0.2); },
     whoosh: () => noise(0.3, 0.12, 900),
+    pop: () => { noise(0.08, 0.3, 3000); tone(420, 0.07, 'triangle', 0.15, 0, 200); },
     crack() { noise(0.12, 0.4, 2500); tone(140, 0.12, 'sine', 0.25, 0, -60); },
     perfect() { tone(880, 0.09, 'square', 0.12); tone(1318, 0.14, 'square', 0.12, 0.09); tone(1760, 0.18, 'square', 0.1, 0.18); },
     good() { tone(660, 0.1, 'square', 0.1); tone(880, 0.12, 'square', 0.1, 0.1); },
@@ -460,13 +581,19 @@ const sfx = (() => {
   };
 })();
 
-// ---------------- input ----------------
+// ---------------- input: tap to cook, drag to tilt the pan ----------------
 const raycaster = new THREE.Raycaster();
 const tapNDC = new THREE.Vector2();
 
-renderer.domElement.addEventListener('pointerdown', (e) => {
+let pointerHeld = false, dragging = false;
+const dragStart = { x: 0, y: 0 };
+const tiltTarget = { x: 0, z: 0 };   // where the pan wants to lean
+const tilt = { x: 0, z: 0 };         // where it actually is (springy)
+const TILT_MAX = 0.32;
+
+function handleTap(x, y) {
   if (state !== 'playing') return;
-  tapNDC.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
+  tapNDC.set((x / window.innerWidth) * 2 - 1, -(y / window.innerHeight) * 2 + 1);
   raycaster.setFromCamera(tapNDC, camera);
 
   // 1) did we tap an egg?
@@ -474,7 +601,7 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
   const eggHits = raycaster.intersectObjects(hitMeshes, false);
   if (eggHits.length) {
     const egg = eggs.find(eg => eg.hit === eggHits[0].object);
-    if (egg) serveEgg(egg, e.clientX, e.clientY);
+    if (egg) serveEgg(egg, x, y);
     return;
   }
 
@@ -490,11 +617,40 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
     }
     if (best) dropEgg(best);
     else {
-      popup(e.clientX, e.clientY, 'PAN FULL!', '#ff9df5', 16);
+      popup(x, y, 'PAN FULL!', '#ff9df5', 16);
       sfx.meh();
     }
   }
+}
+
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  pointerHeld = true;
+  dragging = false;
+  dragStart.x = e.clientX;
+  dragStart.y = e.clientY;
 }, { passive: true });
+
+renderer.domElement.addEventListener('pointermove', (e) => {
+  if (!pointerHeld) return;
+  const dx = e.clientX - dragStart.x;
+  const dy = e.clientY - dragStart.y;
+  if (!dragging && Math.hypot(dx, dy) > 14) dragging = true;
+  if (dragging) {
+    tiltTarget.x = THREE.MathUtils.clamp(dy * 0.0024, -TILT_MAX, TILT_MAX);
+    tiltTarget.z = THREE.MathUtils.clamp(-dx * 0.0024, -TILT_MAX, TILT_MAX);
+  }
+}, { passive: true });
+
+function releasePointer(e) {
+  if (!pointerHeld) return;
+  pointerHeld = false;
+  tiltTarget.x = 0;
+  tiltTarget.z = 0;
+  if (!dragging && e.type === 'pointerup') handleTap(e.clientX, e.clientY);
+  dragging = false;
+}
+renderer.domElement.addEventListener('pointerup', releasePointer, { passive: true });
+renderer.domElement.addEventListener('pointercancel', releasePointer, { passive: true });
 
 document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 document.addEventListener('gesturestart', (e) => e.preventDefault());
@@ -531,6 +687,7 @@ function serveEgg(egg, sx, sy) {
 
   // launch the egg off the pan
   const slot = egg.slot;
+  flyingEggs.push(egg.group);
   tween(0.45, (k) => {
     egg.group.position.y = 0.26 + k * 5 * (1 - k * 0.4);
     egg.group.rotation.x = k * Math.PI * 2;
@@ -539,6 +696,7 @@ function serveEgg(egg, sx, sy) {
   }, () => {
     panGroup.remove(egg.group);
     disposeObject(egg.group);
+    flyingEggs.splice(flyingEggs.indexOf(egg.group), 1);
     slot.taken = false;
   });
   eggs.splice(eggs.indexOf(egg), 1);
@@ -611,6 +769,7 @@ function startGame() {
   eggs.length = 0;
   for (const d of drops) { panGroup.remove(d.shell); disposeObject(d.shell); }
   drops.length = 0;
+  clearTransients();
   for (const s of SLOTS) s.taken = false;
 
   score = 0; combo = 1; timeLeft = ROUND_TIME; lastBeepSecond = -1;
@@ -636,6 +795,7 @@ function endGame() {
   eggs.length = 0;
   for (const d of drops) { panGroup.remove(d.shell); disposeObject(d.shell); }
   drops.length = 0;
+  clearTransients();
   for (const s of SLOTS) s.taken = false;
 
   $('finalScore').textContent = score;
@@ -695,10 +855,12 @@ function animate() {
   const dt = Math.min(clock.getDelta(), 0.05);
   const now = clock.elapsedTime;
 
-  // pan hover bob + sway
+  // pan hover bob + sway + player tilt (springy)
+  tilt.x += (tiltTarget.x - tilt.x) * Math.min(1, dt * 9);
+  tilt.z += (tiltTarget.z - tilt.z) * Math.min(1, dt * 9);
   panGroup.position.y = 1.1 + Math.sin(now * 1.7) * 0.12;
-  panGroup.rotation.z = Math.sin(now * 1.3) * 0.02;
-  panGroup.rotation.x = Math.cos(now * 1.1) * 0.015;
+  panGroup.rotation.z = Math.sin(now * 1.3) * 0.02 + tilt.z;
+  panGroup.rotation.x = Math.cos(now * 1.1) * 0.015 + tilt.x;
 
   // thruster flicker
   for (let i = 0; i < thrusters.length; i++) {
@@ -729,7 +891,10 @@ function animate() {
 
     for (const egg of eggs) {
       egg.age += dt;
-      updateEggLook(egg, now);
+      updateEggLook(egg, now, dt);
+      // eggs slide downhill when the pan is tilted
+      egg.group.position.x += ((egg.slot.x - tilt.z * 1.6) - egg.group.position.x) * Math.min(1, dt * 4);
+      egg.group.position.z += ((egg.slot.z + tilt.x * 1.6) - egg.group.position.z) * Math.min(1, dt * 4);
     }
     sizzleSparks(dt);
     sfx.setSizzle(Math.min(0.16, eggs.length * 0.045));
@@ -744,6 +909,23 @@ function animate() {
     if (d.shell.position.y <= 0.55) {
       drops.splice(i, 1);
       landEgg(d);
+    }
+  }
+
+  // cracked shell halves flying off
+  for (let i = shellBits.length - 1; i >= 0; i--) {
+    const b = shellBits[i];
+    b.life -= dt;
+    b.vel.y -= 22 * dt;
+    b.m.position.addScaledVector(b.vel, dt);
+    b.m.rotation.x += b.angVel.x * dt;
+    b.m.rotation.y += b.angVel.y * dt;
+    b.m.rotation.z += b.angVel.z * dt;
+    b.m.material.opacity = Math.min(1, b.life * 2.5);
+    if (b.life <= 0) {
+      panGroup.remove(b.m);
+      disposeObject(b.m);
+      shellBits.splice(i, 1);
     }
   }
 
