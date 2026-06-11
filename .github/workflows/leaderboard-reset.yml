@@ -1,0 +1,50 @@
+name: Nightly leaderboard reset
+
+# Clears the Hall of Flame every day at 2:00am US Eastern, keeping only the
+# top 3 scores. 2am in New York is 06:00 UTC in summer (EDT) and 07:00 UTC in
+# winter (EST) — both crons fire and the job checks which one is really 2am,
+# so the reset stays DST-proof.
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Keep only the top 3 scores
+        env:
+          DB_URL: https://eggs-ec17c-default-rtdb.firebaseio.com
+        run: |
+          HOUR=$(TZ=America/New_York date +%-H)
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$HOUR" != "2" ]; then
+            echo "Not 2am in New York right now (${HOUR}h) — skipping this trigger."
+            exit 0
+          fi
+          python3 - <<'EOF'
+          import json, os, urllib.request
+
+          db = os.environ['DB_URL']
+          with urllib.request.urlopen(f'{db}/scores.json') as r:
+              data = json.load(r) or {}
+
+          valid = {k: v for k, v in data.items()
+                   if isinstance(v, dict) and isinstance(v.get('pts'), (int, float))}
+          # top 3 by points; earlier scores win ties
+          top3 = dict(sorted(valid.items(),
+                             key=lambda kv: (-kv[1]['pts'], kv[1].get('date', 0)))[:3])
+
+          if set(top3) == set(data):
+              print(f'{len(data)} score(s) on the board, nothing to prune.')
+          else:
+              req = urllib.request.Request(f'{db}/scores.json',
+                                           data=json.dumps(top3).encode(),
+                                           method='PUT')
+              urllib.request.urlopen(req)
+              print(f'Pruned {len(data) - len(top3)} score(s), kept the top {len(top3)}:')
+          for v in top3.values():
+              print(f"  {v.get('name', '?')}: {v['pts']}")
+          EOF
