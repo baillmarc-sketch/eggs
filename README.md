@@ -30,8 +30,6 @@ climb the **HALL OF FLAME** leaderboard.
 | Bit crispy | +40 |
 | Carbonized | −30 |
 
-(Rumor has it the game hides a few secrets — certain names, certain moves...)
-
 The leaderboard is stored locally on your device (localStorage) — or globally for
 everyone, if you set up the free shared backend below.
 
