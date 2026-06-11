@@ -612,6 +612,15 @@ const sfx = (() => {
       // ...and sleigh bells
       for (let i = 0; i < 6; i++) tone(i % 2 ? 2350 : 1980, 0.09, 'triangle', 0.07, 1.05 + i * 0.11);
     },
+    crabRave() {
+      // tiny rave: plucky melody over a four-on-the-floor bass thump
+      const melody = [523, 659, 784, 659, 880, 784, 659, 523, 587, 698, 880, 1047];
+      for (let pass = 0; pass < 2; pass++) {
+        const off = pass * melody.length * 0.16;
+        melody.forEach((f, i) => tone(f, 0.13, 'square', 0.08, off + i * 0.16));
+        for (let i = 0; i < 6; i++) tone(98, 0.1, 'sine', 0.3, off + i * 0.32, -10);
+      }
+    },
     start() { tone(523, 0.1, 'square', 0.1); tone(659, 0.1, 'square', 0.1, 0.1); tone(784, 0.18, 'square', 0.12, 0.2); },
   };
 })();
@@ -979,6 +988,7 @@ $('saveBtn').addEventListener('click', () => {
   $('nameInput').blur();
   if (name === 'ANNA') showSmooch();
   else if (name === 'SANTA') showSanta();
+  else if (name === 'RYAN') showCrab();
   else sfx.good();
 });
 
@@ -986,8 +996,8 @@ $('saveBtn').addEventListener('click', () => {
 let celebrationTimer = null;
 function celebrate(el, sound, emojis, particleClass) {
   el.classList.add('show');
-  // restart the CSS entrance animations
-  for (const child of el.children) {
+  // restart the CSS entrance animations (including nested dancers)
+  for (const child of el.querySelectorAll('*')) {
     child.style.animation = 'none';
     void child.offsetWidth;
     child.style.animation = '';
@@ -1017,6 +1027,7 @@ function celebrate(el, sound, emojis, particleClass) {
 }
 const showSmooch = () => celebrate($('smooch'), sfx.smooch, ['💖', '💕', '💗', '❤️', '💘', '😘'], 'heart');
 const showSanta = () => celebrate($('santa'), sfx.hohoho, ['❄️', '🎁', '⛄', '❄️', '✨', '🦌'], 'flake');
+const showCrab = () => celebrate($('crab'), sfx.crabRave, ['🎵', '🎶', '🫧', '🐚', '✨', '🫧'], 'note');
 $('nameInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('saveBtn').click(); });
 
 renderBoard($('startBoard'));

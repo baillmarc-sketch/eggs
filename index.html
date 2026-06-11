@@ -369,6 +369,88 @@
     10%  { opacity: 1; }
     100% { opacity: 0.85; transform: translateY(108vh) rotate(330deg); }
   }
+
+  /* ============ and a dancing hermit crab for Ryan ============ */
+  #crab {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    overflow: hidden;
+    background: radial-gradient(ellipse at 50% 45%, rgba(0, 190, 210, 0.38), rgba(4, 22, 34, 0.92) 78%);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+  }
+  #crab.show { display: flex; }
+  .crab-track {
+    position: absolute;
+    left: 0; right: 0;
+    top: 34%;
+    height: 0;
+    pointer-events: none;
+  }
+  .crab-dancer {
+    position: absolute;
+    font-size: 92px;
+    line-height: 1;
+    animation: crabWalk 4.4s 0.15s linear both;
+  }
+  .crab-inner {
+    display: inline-block;
+    position: relative;
+    animation: crabBop 0.32s ease-in-out infinite alternate;
+    filter: drop-shadow(0 0 24px rgba(255, 140, 60, 0.8));
+  }
+  .crab-shell {
+    position: absolute;
+    top: -46px;
+    left: 16px;
+    font-size: 58px;
+    animation: shellRock 0.64s ease-in-out infinite;
+  }
+  @keyframes crabWalk {
+    from { left: -140px; }
+    to   { left: 104%; }
+  }
+  @keyframes crabBop {
+    from { transform: translateY(0) rotate(-11deg) scale(1, 0.92); }
+    to   { transform: translateY(-30px) rotate(11deg) scale(1, 1.08); }
+  }
+  @keyframes shellRock {
+    0%, 100% { transform: rotate(-16deg); }
+    50%      { transform: rotate(16deg); }
+  }
+  .crab-text {
+    margin-top: 26vh;
+    font-size: clamp(36px, 10.5vw, 54px);
+    font-weight: 900;
+    font-style: italic;
+    background: linear-gradient(180deg, #b8fff4 10%, #00d9c0 45%, #ff9d45 80%, #ff5e3a 105%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 18px rgba(0, 217, 192, 0.7)) drop-shadow(0 3px 0 rgba(0,0,0,0.35));
+    animation: smoochTextIn 0.7s 0.45s cubic-bezier(0.18, 1.6, 0.4, 1) both;
+  }
+  .crab-text span {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.42em;
+    letter-spacing: 3px;
+    -webkit-text-fill-color: #ffd9a8;
+    filter: none;
+    text-shadow: 0 0 12px rgba(255, 157, 69, 0.8);
+  }
+  .note {
+    position: absolute;
+    bottom: -60px;
+    pointer-events: none;
+    animation: heartFloat linear forwards;
+  }
 </style>
 </head>
 <body>
@@ -434,6 +516,16 @@
 <div id="santa">
   <div class="santa-face">🎅</div>
   <div class="santa-text">HO! HO! HO!<span>MERRY FRY-MAS! 🎄</span></div>
+</div>
+
+<!-- and a little dancer for Ryan -->
+<div id="crab">
+  <div class="crab-track">
+    <div class="crab-dancer">
+      <span class="crab-inner">🦀<span class="crab-shell">🐚</span></span>
+    </div>
+  </div>
+  <div class="crab-text">CRAB RAVE!<span>DANCE, RYAN, DANCE! 🦀</span></div>
 </div>
 
 <script type="module" src="./game.js"></script>
