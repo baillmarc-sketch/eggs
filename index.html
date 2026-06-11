@@ -310,6 +310,65 @@
     12%  { opacity: 1; }
     100% { opacity: 0; transform: translateY(-105vh) rotate(14deg) scale(1.25); }
   }
+
+  /* ============ and one for the big guy ============ */
+  #santa {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    overflow: hidden;
+    background: radial-gradient(ellipse at 50% 40%, rgba(255, 60, 60, 0.4), rgba(8, 30, 16, 0.93) 78%);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+  }
+  #santa.show { display: flex; }
+  .santa-face {
+    font-size: 120px;
+    line-height: 1;
+    animation: smoochPop 0.9s cubic-bezier(0.18, 1.6, 0.4, 1) both, bellyLaugh 0.42s 0.9s ease-in-out infinite;
+    filter: drop-shadow(0 0 30px rgba(255, 80, 80, 0.9));
+  }
+  @keyframes bellyLaugh {
+    0%, 100% { transform: scale(1, 1) rotate(-3deg); }
+    50%      { transform: scale(1.08, 0.92) rotate(3deg) translateY(6px); }
+  }
+  .santa-text {
+    margin-top: 14px;
+    font-size: clamp(38px, 11vw, 56px);
+    font-weight: 900;
+    font-style: italic;
+    background: linear-gradient(180deg, #ffffff 12%, #ffd6d6 40%, #ff4444 75%, #b80000 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 18px rgba(255, 80, 80, 0.7)) drop-shadow(0 3px 0 rgba(0,0,0,0.35));
+    animation: smoochTextIn 0.7s 0.45s cubic-bezier(0.18, 1.6, 0.4, 1) both;
+  }
+  .santa-text span {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.42em;
+    letter-spacing: 3px;
+    -webkit-text-fill-color: #b8ffce;
+    filter: none;
+    text-shadow: 0 0 12px rgba(120, 255, 170, 0.8);
+  }
+  .flake {
+    position: absolute;
+    top: -60px;
+    pointer-events: none;
+    animation: flakeFall linear forwards;
+  }
+  @keyframes flakeFall {
+    0%   { opacity: 0; transform: translateY(0) rotate(0deg); }
+    10%  { opacity: 1; }
+    100% { opacity: 0.85; transform: translateY(108vh) rotate(330deg); }
+  }
 </style>
 </head>
 <body>
@@ -368,6 +427,12 @@
 <div id="smooch">
   <div class="smooch-lips">💋</div>
   <div class="smooch-text">I love you!<span>xo, MB</span></div>
+</div>
+
+<!-- and one for the big guy -->
+<div id="santa">
+  <div class="santa-face">🎅</div>
+  <div class="santa-text">HO! HO! HO!<span>MERRY FRY-MAS! 🎄</span></div>
 </div>
 
 <script type="module" src="./game.js"></script>

@@ -584,6 +584,17 @@ const sfx = (() => {
       tone(659, 0.12, 'triangle', 0.12, 0.45);
       tone(880, 0.25, 'triangle', 0.12, 0.58);
     },
+    hohoho() {
+      // three deep belly laughs...
+      for (let i = 0; i < 3; i++) {
+        const t = i * 0.32;
+        tone(150, 0.16, 'sawtooth', 0.16, t, -55);
+        tone(95, 0.24, 'sine', 0.28, t, -25);
+        noise(0.1, 0.12, 700, t);
+      }
+      // ...and sleigh bells
+      for (let i = 0; i < 6; i++) tone(i % 2 ? 2350 : 1980, 0.09, 'triangle', 0.07, 1.05 + i * 0.11);
+    },
     start() { tone(523, 0.1, 'square', 0.1); tone(659, 0.1, 'square', 0.1, 0.1); tone(784, 0.18, 'square', 0.12, 0.2); },
   };
 })();
@@ -870,13 +881,13 @@ $('saveBtn').addEventListener('click', () => {
   renderBoard($('overBoard'), entry);
   $('nameInput').blur();
   if (name === 'ANNA') showSmooch();
+  else if (name === 'SANTA') showSanta();
   else sfx.good();
 });
 
-// ---------------- the Anna easter egg ----------------
-let smoochTimer = null;
-function showSmooch() {
-  const el = $('smooch');
+// ---------------- name-triggered easter eggs ----------------
+let celebrationTimer = null;
+function celebrate(el, sound, emojis, particleClass) {
   el.classList.add('show');
   // restart the CSS entrance animations
   for (const child of el.children) {
@@ -884,30 +895,31 @@ function showSmooch() {
     void child.offsetWidth;
     child.style.animation = '';
   }
-  sfx.smooch();
-  const HEARTS = ['💖', '💕', '💗', '❤️', '💘', '😘'];
+  sound();
   for (let i = 0; i < 26; i++) {
     setTimeout(() => {
       if (!el.classList.contains('show')) return;
-      const h = document.createElement('div');
-      h.className = 'heart';
-      h.textContent = HEARTS[Math.floor(Math.random() * HEARTS.length)];
-      h.style.left = Math.random() * 92 + 2 + '%';
-      h.style.fontSize = 22 + Math.random() * 30 + 'px';
-      h.style.animationDuration = 2.4 + Math.random() * 2 + 's';
-      el.appendChild(h);
-      setTimeout(() => h.remove(), 4600);
+      const p = document.createElement('div');
+      p.className = particleClass;
+      p.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+      p.style.left = Math.random() * 92 + 2 + '%';
+      p.style.fontSize = 22 + Math.random() * 30 + 'px';
+      p.style.animationDuration = 2.4 + Math.random() * 2 + 's';
+      el.appendChild(p);
+      setTimeout(() => p.remove(), 4600);
     }, i * 140);
   }
   const hide = () => {
-    clearTimeout(smoochTimer);
+    clearTimeout(celebrationTimer);
     el.classList.remove('show');
-    el.querySelectorAll('.heart').forEach((h) => h.remove());
+    el.querySelectorAll('.' + particleClass).forEach((p) => p.remove());
   };
-  clearTimeout(smoochTimer);
-  smoochTimer = setTimeout(hide, 5200);
+  clearTimeout(celebrationTimer);
+  celebrationTimer = setTimeout(hide, 5200);
   el.addEventListener('pointerdown', hide, { once: true });
 }
+const showSmooch = () => celebrate($('smooch'), sfx.smooch, ['💖', '💕', '💗', '❤️', '💘', '😘'], 'heart');
+const showSanta = () => celebrate($('santa'), sfx.hohoho, ['❄️', '🎁', '⛄', '❄️', '✨', '🦌'], 'flake');
 $('nameInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('saveBtn').click(); });
 
 renderBoard($('startBoard'));
