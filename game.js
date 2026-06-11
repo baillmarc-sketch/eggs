@@ -249,7 +249,7 @@ function makeEgg(slot) {
   return {
     group, white, edge, yolk, ring, pupils, slot,
     age: 0, alive: true, eyePhase: Math.random() * 10, bubbles: [],
-    flipped: false, broken: false, flipping: false,
+    flipped: false, broken: false, flipping: false, flips: 0, hancock: false,
   };
 }
 
@@ -479,6 +479,8 @@ function clearTransients() {
   crackingShells.length = 0;
   for (const g of flyingEggs) { panGroup.remove(g); disposeObject(g); }
   flyingEggs.length = 0;
+  for (const r of rainEggs) scene.remove(r.m);  // shared geometry, no dispose
+  rainEggs.length = 0;
   tweens.length = 0;
 }
 
@@ -617,6 +619,13 @@ const sfx = (() => {
       for (let i = 0; i < 5; i++) noise(0.09, 0.14, 2600 + (i % 2) * 900, i * 0.13);
       tone(1568, 0.3, 'triangle', 0.14, 0.75);
       tone(2093, 0.4, 'triangle', 0.1, 0.85);
+    },
+    hancock() {
+      // triumphant fanfare and a drumroll of falling-egg plops
+      const seq = [523, 659, 784, 1047];
+      seq.forEach((f, i) => tone(f, 0.12, 'square', 0.1, i * 0.09));
+      tone(1319, 0.35, 'square', 0.12, 0.36);
+      for (let i = 0; i < 5; i++) noise(0.07, 0.2, 1200 + i * 150, 0.5 + i * 0.12);
     },
     smackdown() {
       // crowd roar swells, the body hits the mat, then the bell
@@ -769,6 +778,22 @@ function screenPos(obj) {
   return [(v.x + 1) / 2 * window.innerWidth, (-v.y + 1) / 2 * window.innerHeight];
 }
 
+// ---------------- Eggs Hancock rain ----------------
+const rainEggs = [];
+const rainGeo = new THREE.SphereGeometry(0.22, 10, 8);
+const rainMat = new THREE.MeshStandardMaterial({ color: 0xfdf3dc, roughness: 0.5 });
+
+function eggsHancockRain() {
+  for (let i = 0; i < 24; i++) {
+    const m = new THREE.Mesh(rainGeo, rainMat);
+    m.scale.set(1, 1.3, 1);
+    m.position.set((Math.random() - 0.5) * 11, 9 + Math.random() * 18, (Math.random() - 0.5) * 7);
+    m.rotation.set(Math.random() * 3, 0, Math.random() * 3);
+    scene.add(m);
+    rainEggs.push({ m, vy: -Math.random() * 2, spin: 4 + Math.random() * 6 });
+  }
+}
+
 function flipEgg(egg) {
   if (!egg.alive || egg.flipping) return;
   const [sx, sy] = screenPos(egg.group);
@@ -796,7 +821,16 @@ function flipEgg(egg) {
     sfx.thud();
     burstParticles(toWorld(egg.group), 0xfff7e0, 8, 2);
     const [lx, ly] = screenPos(egg.group);
-    if (breaks) {
+    egg.flips++;
+    if (egg.flips === 2 && !egg.hancock) {
+      // double flip: the legendary EGGS HANCOCK bonus
+      egg.hancock = true;
+      popup(window.innerWidth / 2, window.innerHeight * 0.3, 'EGGS HANCOCK!', '#ffd34d', 30);
+      sfx.hancock();
+      eggsHancockRain();
+      if (navigator.vibrate) navigator.vibrate([30, 40, 30]);
+      if (breaks) egg.broken = true;
+    } else if (breaks) {
       egg.broken = true;
       popup(lx, ly - 30, 'YOLK BROKE!', '#ff9df5', 20);
       sfx.meh();
@@ -823,7 +857,11 @@ function serveEgg(egg, sx, sy) {
     else sfx.meh();
   }
 
-  const pts = grade.perfect ? grade.pts * combo : grade.pts;
+  let pts = grade.perfect ? grade.pts * combo : grade.pts;
+  if (egg.hancock) {
+    pts += 150;
+    popup(sx, sy + 52, '🥚 HANCOCK +150', '#fffb96', 18);
+  }
   score = Math.max(0, score + pts);
   updateHUD();
 
@@ -1134,6 +1172,19 @@ function animate() {
     if (d.shell.position.y <= 0.55) {
       drops.splice(i, 1);
       landEgg(d);
+    }
+  }
+
+  // Eggs Hancock rain
+  for (let i = rainEggs.length - 1; i >= 0; i--) {
+    const r = rainEggs[i];
+    r.vy -= 14 * dt;
+    r.m.position.y += r.vy * dt;
+    r.m.rotation.x += r.spin * dt;
+    r.m.rotation.z += r.spin * 0.6 * dt;
+    if (r.m.position.y < -3) {
+      scene.remove(r.m);
+      rainEggs.splice(i, 1);
     }
   }
 
