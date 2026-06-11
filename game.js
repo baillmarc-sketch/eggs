@@ -19,7 +19,7 @@ const SCORES = { gooey: 10, almost: 50, perfect: 100, crispy: 40, burnt: -30 };
 // GLOBAL LEADERBOARD: paste your Firebase Realtime Database URL between the
 // quotes below and the Hall of Flame is shared by every phone, forever.
 // Leave empty for a device-local board. Setup steps are in the README.
-const FIREBASE_DB_URL = '';  // e.g. 'https://eggfryer-default-rtdb.firebaseio.com'
+const FIREBASE_DB_URL = 'https://eggs-ec17c-default-rtdb.firebaseio.com';
 const REMOTE_DB_URL = (new URLSearchParams(location.search).get('db') || FIREBASE_DB_URL)
   .replace(/\/$/, '');
 
