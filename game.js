@@ -9,11 +9,11 @@ import * as THREE from './three.module.js';
 const ROUND_TIME = Number(new URLSearchParams(location.search).get('t')) || 60;  // seconds per round (?t= overrides, for testing)
 const MAX_COMBO = 5;
 const STAGE = {                 // egg age thresholds (seconds)
-  GOOEY: 6,                     // < 6s  : still gooey
-  ALMOST: 8.5,                  // 6–8.5 : almost there
-  PERFECT_END: 12,              // 8.5–12: PERFECT window
-  CRISPY_END: 15,               // 12–15 : bit crispy
-};                              // > 15  : carbonized
+  GOOEY: 3,                     // < 3s : still gooey
+  ALMOST: 6,                    // 3–6  : almost there
+  PERFECT_END: 8,               // 6–8  : PERFECT window
+  CRISPY_END: 10,               // 8–10 : bit crispy
+};                              // > 10 : carbonized
 const SCORES = { gooey: 10, almost: 50, perfect: 100, overEasy: 150, crispy: 40, burnt: -30 };
 
 // GLOBAL LEADERBOARD: paste your Firebase Realtime Database URL between the
@@ -356,7 +356,7 @@ function updateEggLook(egg, now, dt) {
   }
 
   // sizzle bubbles on the white while it cooks
-  if (a > 3 && a < STAGE.CRISPY_END && Math.random() < dt * 4) {
+  if (a > 2 && a < STAGE.CRISPY_END && Math.random() < dt * 4) {
     const mat = new THREE.MeshBasicMaterial({ color: 0xfffbee, transparent: true, opacity: 0.75 });
     const b = new THREE.Mesh(bubbleGeo, mat);
     const ang = Math.random() * Math.PI * 2, rad = 0.2 + Math.random() * 0.5;
@@ -707,7 +707,7 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
   if (state === 'playing') {
     const local = projectToPan(e.clientX, e.clientY);
     const near = local ? eggNear(local) : null;
-    eggAtStart = near && near.d < 1.3 ? near.egg : null;
+    eggAtStart = near && near.d < 1.55 ? near.egg : null;
   } else {
     eggAtStart = null;
   }
@@ -720,16 +720,16 @@ renderer.domElement.addEventListener('pointermove', (e) => {
   if (gesture === 'none') {
     const elapsed = performance.now() - downTime;
     if (eggAtStart) {
-      // a quick upward flick that started on an egg = FLIP; the flick gets
+      // an upward flick that started on an egg = FLIP; the flick gets strong
       // priority, so tilt only starts for clearly sideways/downward drags
       // or once the flick window has passed
-      if (dy < -40 && elapsed < 400) {
+      if (dy < -28 && elapsed < 650) {
         gesture = 'flip';
         flipEgg(eggAtStart);
         return;
       }
-      if ((Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) || dy > 40 ||
-          (elapsed >= 400 && Math.hypot(dx, dy) > 14)) gesture = 'tilt';
+      if ((Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.5) || dy > 55 ||
+          (elapsed >= 650 && Math.hypot(dx, dy) > 14)) gesture = 'tilt';
     } else if (Math.hypot(dx, dy) > 14) {
       gesture = 'tilt';
     }
