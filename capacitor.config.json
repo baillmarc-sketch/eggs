@@ -1,0 +1,11 @@
+{
+  "appId": "com.baill.eggfryer3000",
+  "appName": "EGG FRYER 3000",
+  "webDir": "www",
+  "backgroundColor": "#0a0118",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#0a0118",
+    "preferredContentMode": "mobile"
+  }
+}
